@@ -183,10 +183,10 @@ class Chart{
 		this.previousPosition = window.event.touches[0].clientX;
 		let sliderRect = this.slider.getBoundingClientRect();
 		
-		if (window.event.touches[0].clientX < sliderRect.left + 20){
+		if (window.event.touches[0].clientX < sliderRect.left + 40){
 		    this.movement = "left";
 		} else if (window.event.touches[0].clientX > sliderRect.left +
-			   parseInt(getComputedStyle(this.slider).width) - 20){
+			   parseInt(getComputedStyle(this.slider).width) - 40){
 		    this.movement = "right";
 		} else {
 		    this.movement = "mid";
