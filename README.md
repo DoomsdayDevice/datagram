@@ -1,5 +1,5 @@
 # Datagram
-App for a Telegram competition. Implemented with no libraries, only native JS.
+App made for the March Telegram competition. Implemented with no libraries, only native JS.
 
 Some features:
     * data is displayed using the \<canvas\>  
