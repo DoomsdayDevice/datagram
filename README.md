@@ -1,4 +1,4 @@
-# datagram
+# DataGram
 App for a Telegram competition. Implemented with no libraries, only native JS.
 
 Some features:
