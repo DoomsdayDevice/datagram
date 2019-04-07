@@ -53,7 +53,7 @@ h1 {
 
   position: absolute;
 
-  opacity: 0; 
+  opacity: 0;
   transition: opacity 0.3s;
 
 }
@@ -90,38 +90,37 @@ h1 {
 /* CHECKMARKS */
 .button-container{
     /*display: inline; */
-    display: block;
+    display: flex;
+    flex-direction: row;
+    justify-content: space-around;
+    align-items: center;
+
     float:left;
     position: relative;
     cursor: pointer;
-    font-size: 17px;
+    font-size: 30px;
     font-weight: bold;
     color: grey;
+
     -webkit-user-select: none;
     -moz-user-select: none;
     -ms-user-select:none;
 
-    border-radius: 18px;
-    padding: 5px;
-    padding-left: 35px;
-    padding-right: 20px;
-    height: auto;
+    border-radius: 50px;
+    padding: 11px;
+    padding-right: 40px;
+    padding-left: 15px;
     top: 30px;
     margin-right: 20px;
     border: 2px solid #888;
+
     -webkit-tap-highlight-color:  rgba(255, 255, 255, 0); 
+
 
 }
 
 .button-container input{
-    position: absolute;
-    opacity: 0;
-    cursor: pointer;
-    height: 0;
-    width: 0;
-}
-
-.button-container input:checked ~ .checkmark {
+    display: none;
 }
 
 .button-container input:checked ~ .checkmark:after {
@@ -131,12 +130,12 @@ h1 {
 }
 
 .button-container .checkmark:after {
-    left: 6px;
+    left: 13px;
     top: 3px;
-    width: 5px;
-    height: 10px;
+    width: 15px;
+    height: 30px;
     border: solid white;
-    border-width: 0 3px 3px 0;
+    border-width: 0 6px 7px 0;
     -webkit-transform: rotate(45deg);
     -ms-transform: rotate(45deg);
     transform: rotate(45deg);
@@ -144,13 +143,11 @@ h1 {
 
 
 .checkmark{
-
-    position: absolute;
-    top: 15%;
-    left: 5px;
-    height: 20px;
-    width: 20px;
-    border-radius:18px;
+    position: relative;
+    margin-right: 20px;
+    height: 50px;
+    width: 50px;
+    border-radius: 50%;
     transition: background-color 300ms ease-in-out 0.1s;
 }
 .checkmark:after {

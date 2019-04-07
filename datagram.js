@@ -222,14 +222,13 @@ class Chart{
 		            let label = document.createElement("label");
 		            this.miniDiv.appendChild(label);
 		            label.className = "button-container";
-		            label.innerHTML = this.lines[i].checkboxName;
 		            
-		            let checkbox = document.createElement("input");
-		            checkbox.type = "checkbox";
-		            label.appendChild(checkbox);
-		            checkbox.checked = true;
-		            checkbox.addEventListener("click", function (){
-		                if (checkbox.checked == false){
+		            let input = document.createElement("input");
+		            input.type = "checkbox";
+		            label.appendChild(input);
+		            input.checked = true;
+		            input.addEventListener("click", function (){
+		                if (input.checked == false){
 			                  this.justBeenRemoved = this.lines[i]["array"];
 		                } else {
 			                  this.justBeenSelected = this.lines[i]["array"];
@@ -237,22 +236,29 @@ class Chart{
 			              this.redraw("smooth");
 			              this.drawMinimap();
 		            }.bind(this));
-		            this.lines[i]["checkbox"] = checkbox;
+		            this.lines[i]["checkbox"] = input;
 		            
-		            let span = document.createElement("span");
-		            label.appendChild(span);
-		            span.className = "checkmark";
+		            let checkmark = document.createElement("span");
+		            label.appendChild(checkmark);
+                //put text inside
+                let text = document.createElement("p");
+                label.appendChild(text);
+                text.appendChild(document.createTextNode(this.lines[i].checkboxName));
+                
+                
+		            checkmark.className = "checkmark";
 		            // assign the border as the color
 		            let color = this.lines[i]["color"];
-		            span.style.border = "2px solid " + color;
-		            span.style.backgroundColor = color;
-		            checkbox.addEventListener("change", function () {
+		            checkmark.style.border = "2px solid " + color;
+		            checkmark.style.backgroundColor = color;
+		            input.addEventListener("change", function () {
 		                if (this.checked){
-			                  span.style.backgroundColor = color;
+			                  checkmark.style.backgroundColor = color;
 		                } else {
-			                  span.style.backgroundColor = document.body.style.backgroundColor;
+			                  checkmark.style.backgroundColor = document.body.style.backgroundColor;
 		                }
 		            });
+                console.log (label);
 		            
 	          }
 	      };
