@@ -8,10 +8,16 @@ body{
 
 }
 
+canvas {
+    border: 1px dashed black;
+}
 .main-container{
     margin-top: 50px;
     margin-bottom: 200px;
     margin-right: 50px;
+}
+.canvases-container {
+    position: relative;
 }
 
 .minimap-div {
