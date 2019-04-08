@@ -1,12 +1,15 @@
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const numOfRows = 6; // how many numbers should be displayed on the left
+const dateSpace = 23; // the space left to display the dates
 const help = {
     round: function (number){
         return Math.round(number * 10) / 10;
     }
 };
+
 const myMath = {
-    findPrettyMax: function (listOfArrays, numOfRows = 6) {
+    findPrettyMax: function (listOfArrays) {
         // find the optimal ceiling for the graph (tries to find a round pretty number)
 
         // takes the biggest number from the set and defines the ceiling of the graph based on it
@@ -84,6 +87,7 @@ class Chart{
         this.initialConfigure();
 
         this.drawGraph();
+        this.drawMinimap();
         // this.drawNumbers();
         // this.drawHorizontalLine();
 
@@ -344,21 +348,26 @@ class Chart{
 
     }
     // configuring the graph
-    calculateCutout (){
-        // converts current minimap coordinates into indeces of x array to be displayed
+    calculateCutout () {
+        // TODO gotta calc the columns and the offset
+        // the offset is later used by drawgraph to calculate Translate
         let lPoint = parseInt(getComputedStyle(this.slider).left);
         let rPoint = lPoint + parseInt(getComputedStyle(this.slider).width);
         let mColumnWidth = this.minimap.width / this.x.length;
-        this.beginning = Math.round(lPoint / mColumnWidth);
-        this.end = Math.round(rPoint / mColumnWidth);
+        this.cutoutScreenColumnSize = (rPoint - lPoint) / mColumnWidth;
+        
+        this.sliderColumnStart = Math.floor(lPoint / mColumnWidth);
+        this.sliderColumnEnd = Math.ceil(rPoint / mColumnWidth);
 
-        this.columnWidth =
-            (this.graph.width / (this.end - this.beginning) * 10) / 10;
+        // offset: difference between the position column coords and slider coords
+        // gotta convert that to the graph offset in drawGraph
+        
+        this.sliderOffset = lPoint - this.sliderColumnStart * mColumnWidth;
 
-    };
+        // TODO round this float probably
+
+    }
     initialConfigure(){
-        this.numOfRows = 6; // how many numbers should be displayed on the left
-        this.dateSpace = 23; // the space left to display the dates
 
         this.rowHeight = (this.graph.height - this.dateSpace) / this.numOfRows;
 
@@ -381,6 +390,19 @@ class Chart{
         // let ceiling = Math.max(...this.lines[0]["array"]);
         let ceiling = myMath.findPrettyMax(this.lines);
 
+        this.calculateCutout();
+        let xStart = this.sliderColumnStart;
+        let xEnd = this.sliderColumnEnd;
+
+
+        // the offset of graph should be much bigger
+        // accounting for the fact that graph is partial and minimap if full
+        // divide by number of cutout columns and multiply by total number
+        let xOffset = this.sliderOffset / this.minimap.width * this.graph.width;
+        let numOfCutColumns = this.sliderColumnEnd - this.sliderColumnStart;
+        xOffset = xOffset / numOfCutColumns * this.x.length;
+
+
 
         let color;
         let array;
@@ -390,17 +412,21 @@ class Chart{
                 color = this.lines[i]["color"];
                 array = this.lines[i]["array"];
                 this.drawLine(this.gCtx, this.x, array, color, 0, this.graph.height,
-                              0, this.graph.width, 0, this.x.length - 1, ceiling);
+                              0, this.graph.width, xStart, xEnd, ceiling, xOffset, this.cutoutScreenColumnSize);
             }
         }
     }
+
     drawLine(ctx, xArray, yArray, color, yStartPoint, yEndPoint,
-             xStartPoint, xEndPoint, xStart, xEnd, ceiling) {
+             xStartPoint, xEndPoint, xStart, xEnd, ceiling, xOffset = 0,
+             columnFactor = this.x.length) {
         let xLength = xEnd - xStart;
         let areaHeight = yEndPoint - yStartPoint;
         let areaWidth = xEndPoint - xStartPoint;
 
-        let xFactor = areaWidth / xLength;
+        // let cutoutWidth = this.cutoutWidth / this.minimap.width * this.graph.width;
+        // console.log("cutoutWidth", cutoutWidth);
+        let xFactor = areaWidth / columnFactor; //used to calculate the number of columns on the screen
         let yFactor = yEndPoint / ceiling;
 
         let currentX = xStartPoint;
@@ -408,13 +434,14 @@ class Chart{
 
 
         ctx.beginPath();
-        ctx.moveTo(currentX, currentY);
+        // ctx.moveTo(currentX, currentY);
         for (let i = xStart; i < xEnd; i++) {
-            currentX = help.round((i - xStart) * xFactor);
+            currentX = help.round((i - xStart) * xFactor) - xOffset;
             currentY = yEndPoint - help.round( yArray[i] * yFactor );
 
             ctx.lineTo(currentX, currentY);
         }
+        ctx.lineJoin = "round";
         ctx.lineWidth = 3;
         ctx.strokeStyle = color;
 
@@ -452,14 +479,12 @@ class Chart{
     }
 
     moveSlider(event){
+        let movementX = event.movementX;
         event.preventDefault();
 
-        let movementX;
         if (event.type === "touchmove"){ // check if on mobile
             movementX = Math.round(event.touches[0].clientX - this.previousPosition);
             this.previousPosition = event.touches[0].clientX;
-        } else {
-            movementX = event.movementX;
         }
 
         let sliderStyle = getComputedStyle(this.slider);
@@ -573,16 +598,17 @@ class Chart{
         this.redraw();
         // TODO recalculate the position of the
         this.configureSlider();
+
     }
     configureSlider(){
         this.sliderRect = this.slider.getBoundingClientRect();
         this.sliderWidth = parseInt(getComputedStyle(this.slider).width);
     }
-    tooltip(event){
+    tooltip({clientX}){
         // gets the current mouse position and prints the appropriate array values
         let cutoutSize = this.end - this.beginning;
         let columnWidth = this.graph.width / cutoutSize;
-        let currentGraphColumn = Math.round(event.clientX / columnWidth);
+        let currentGraphColumn = Math.round(clientX / columnWidth);
         let currentXPos = currentGraphColumn * this.columnWidth;
 
         let currentArrayColumn = this.beginning + currentGraphColumn;
@@ -629,7 +655,7 @@ class Chart{
 
         let drawCircles = () => {
             // drawing the circles for each line based on its configuration
-            let number;
+            let ber;
             let name;
             let style;
             for (let i in this.lines){
