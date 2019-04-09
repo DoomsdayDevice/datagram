@@ -1,25 +1,29 @@
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-const numOfRows = 6; // how many numbers should be displayed on the left
-const dateSpace = 23; // the space left to display the dates
+const NUMOFROWS = 6; // how many numbers should be displayed on the left
+const DATESPACE = 23; // the space left to display the dates
 const help = {
     round: function (number){
         return Math.round(number * 10) / 10;
+    },
+    calcXPositionOnCanvas: function() {
+        // TODO implement this
+        
     }
 };
 
 const myMath = {
-    findPrettyMax: function (listOfArrays) {
+    findPrettyMax: function (listOfArrays, xStart, xEnd) {
         // find the optimal ceiling for the graph (tries to find a round pretty number)
 
         // takes the biggest number from the set and defines the ceiling of the graph based on it
-        let max = myMath.findActiveMax(listOfArrays);
+        let max = myMath.findActiveMax(listOfArrays, xStart, xEnd);
 
         max *= 1.1; // make it a bit higher so there's some space above
-        let currentNumber = numOfRows;
+        let currentNumber = NUMOFROWS;
         let index = 0;
         let prettyNum = currentNumber;
-        while (currentNumber < max / numOfRows){
+        while (currentNumber < max / NUMOFROWS){
             prettyNum = currentNumber;
             if (currentNumber.toString()[0] == ('5')) {
                 currentNumber *= 2;
@@ -32,16 +36,19 @@ const myMath = {
 
         return rounded;
     },
-    findActiveMax: function (listOfArrays) {
+    findActiveMax: function (listOfArrays, xStart, xEnd) {
         // iterate through active arrays, find the biggest num
         let findMaxInArray = (array) => {
-            return Math.max(...array);
+            return Math.max(...array.slice(xStart, xEnd+1));
         };
 
         let currentMax = 0;
         for (let i=0; i < listOfArrays.length; i++){
             // TODO if active
-            currentMax = Math.max(findMaxInArray(listOfArrays[i]["array"]), currentMax);
+            if (listOfArrays[i]["checkbox"].checked){
+                currentMax = Math.max(findMaxInArray(listOfArrays[i]["array"]), currentMax);
+
+            }
         }
         return currentMax;
 
@@ -366,14 +373,20 @@ class Chart{
 
         // TODO round this float probably
 
+
     }
     initialConfigure(){
 
-        this.rowHeight = (this.graph.height - this.dateSpace) / this.numOfRows;
+        //  this.rowHeight = (this.graph.height - DATESPACE) / NUMOFROWS;
 
         // finds the maxmimum array value to scale the graph ceiling
         this.calculateCutout();
-        // this.configureCeiling();
+        // configuring the initial ceiling so that the drawing func can check against it
+        // TODO optimize this
+        this.oldCeiling = myMath.findPrettyMax(this.lines, 0, this.x.length);
+        this.graphCeiling = myMath.findPrettyMax(this.lines, 0, this.x.length);
+        this.oldMinimapCeiling = myMath.findPrettyMax(this.lines, 0, this.x.length);
+
         this.ySmoothJump = 0;
         this.smoothCounter = 0;
         this.numOfSmoothFrames = 20;
@@ -381,19 +394,17 @@ class Chart{
         this.currentColumnCursor = undefined;
 
 
+        this.drawHorizontalLineAboveText();
 
     }
 
 
     drawGraph(){
-        // let step = this.graph.width / this.x.length;
-        // let ceiling = Math.max(...this.lines[0]["array"]);
-        let ceiling = myMath.findPrettyMax(this.lines);
-
         this.calculateCutout();
         let xStart = this.sliderColumnStart;
         let xEnd = this.sliderColumnEnd;
 
+        let ceiling = myMath.findPrettyMax(this.lines, xStart, xEnd);
 
         // the offset of graph should be much bigger
         // accounting for the fact that graph is partial and minimap if full
@@ -403,41 +414,41 @@ class Chart{
         xOffset = xOffset / numOfCutColumns * this.x.length;
 
 
-
-        let color;
-        let array;
-        for (let i=0; i < this.lines.length; i++){
-            if (this.lines[i]["checkbox"].checked) {
-
-                color = this.lines[i]["color"];
-                array = this.lines[i]["array"];
-                this.drawLine(this.gCtx, this.x, array, color, 0, this.graph.height,
-                              0, this.graph.width, xStart, xEnd, ceiling, xOffset, this.cutoutScreenColumnSize);
-            }
+        let parameters = [this.gCtx, this.x, "array", "color", DATESPACE, this.graph.height,
+                          0, this.graph.width, xStart, xEnd, ceiling,
+                          xOffset, this.cutoutScreenColumnSize, this.oldCeiling];
+        // checking if i need the animation
+        if (this.oldCeiling != ceiling) { // TODO consider code optimization with drawMinimap
+            this.animation(parameters);
+            this.oldCeiling = ceiling;
+        } else {
+            this.drawWrapper(parameters);
         }
     }
 
     drawLine(ctx, xArray, yArray, color, yStartPoint, yEndPoint,
-             xStartPoint, xEndPoint, xStart, xEnd, ceiling, xOffset = 0,
-             columnFactor = this.x.length) {
+             xStartPoint, xEndPoint, xStart, xEnd, ceiling, xOffset,
+             columnFactor) {
         let xLength = xEnd - xStart;
         let areaHeight = yEndPoint - yStartPoint;
         let areaWidth = xEndPoint - xStartPoint;
 
         // let cutoutWidth = this.cutoutWidth / this.minimap.width * this.graph.width;
         // console.log("cutoutWidth", cutoutWidth);
+
+        // xFactor is essentially column width
         let xFactor = areaWidth / columnFactor; //used to calculate the number of columns on the screen
-        let yFactor = yEndPoint / ceiling;
+        let yFactor = areaHeight / ceiling;
 
         let currentX = xStartPoint;
-        let currentY = help.round(yArray[xStart] * yFactor);
+        let currentY = help.round(yArray[xStart] * yFactor) - yStartPoint;
 
-
+        
         ctx.beginPath();
         // ctx.moveTo(currentX, currentY);
         for (let i = xStart; i < xEnd; i++) {
             currentX = help.round((i - xStart) * xFactor) - xOffset;
-            currentY = yEndPoint - help.round( yArray[i] * yFactor );
+            currentY = yEndPoint - help.round( yArray[i] * yFactor ) - yStartPoint;
 
             ctx.lineTo(currentX, currentY);
         }
@@ -446,6 +457,8 @@ class Chart{
         ctx.strokeStyle = color;
 
         ctx.stroke();
+
+        this.drawText(xStart, xEnd, xOffset, xFactor);
     }
 
 
@@ -458,26 +471,174 @@ class Chart{
 
     }
 
+    animation(parameters){
+        // draws lines with given parameters and each time adjusts the ceiling
+        // old ceiling
+        let ceiling = parameters[10];
+        let oldCeiling = parameters[parameters.length - 1];
+
+        let numOfFrames = 30; //TODO temp
+        let ceilRelationship = (1 / ceiling) * this.oldCeiling;
+        let difference = ceiling - this.oldCeiling;
+        let distributedDifference = difference / numOfFrames;
+        
+        let currentCeiling = this.oldCeiling + distributedDifference;
+
+        let counter = 0;
+        let drawAnimation = () => {
+            if (counter < numOfFrames) {
+                requestAnimationFrame(drawAnimation);
+                parameters[0].clearRect(0, 0, parameters[7], parameters[5]);
+                parameters[10] = currentCeiling;
+                currentCeiling += distributedDifference;
+                this.drawWrapper(parameters);
+                counter += 1;
+            }
+        };
+        requestAnimationFrame(drawAnimation);
+    }
+
     drawMinimap(){
         // TODO optimize ceiling calculations so i don't do them twice with drawGraph
-        
-        
-        let ceiling = myMath.findPrettyMax(this.lines);
 
+        let ceiling = myMath.findPrettyMax(this.lines, 0, this.x.length);
+        let parameters = [this.mCtx, this.x, "array", "color", 0, this.minimap.height,
+                          0, this.minimap.width, 0, this.x.length - 1, ceiling,
+                          0, this.x.length, this.oldMinimapCeiling];
 
-        let color;
-        let array;
+        // checking if i need to do an animation
+        if (this.oldMinimapCeiling != ceiling) {
+            this.animation(parameters);
+            this.oldMinimapCeiling = ceiling;
+        } else {
+            this.drawWrapper(parameters);
+        }
+
+    }
+
+    drawWrapper(parameters){
+        //takes parameters from drawGraph or drawMinimap and paints
         for (let i=0; i < this.lines.length; i++){
             if (this.lines[i]["checkbox"].checked) {
 
-                color = this.lines[i]["color"];
-                array = this.lines[i]["array"];
-                this.drawLine(this.mCtx, this.x, array, color, 0, this.minimap.height,
-                              0, this.minimap.width, 0, this.x.length - 1, ceiling);
+                parameters[3] = this.lines[i]["color"];
+                parameters[2] = this.lines[i]["array"];
+                this.drawLine(...parameters);
             }
+            this.drawNumbers();
         }
     }
 
+
+    drawHorizontalLines(){
+        
+	      let drawLines = () =>{
+	          let y = this.dateSpace - 21;
+	          for (let i = 0; i < this.numOfRows; i++){
+		            ctx.moveTo(x, y);
+		            ctx.lineTo(xEnd, y);
+		            y += this.rowHeight;
+	          }
+	          ctx.globalAlpha = 0.5;
+	          ctx.strokeStyle = "grey";
+	          ctx.lineWidth = "1";
+	          
+
+	          ctx.stroke();
+	          ctx.beginPath();
+	          ctx.globalAlpha = 1;
+	      };
+	      ctx.beginPath();
+	      if (iteration == 0 && this.isAnyArrayActive()){
+	          drawLines();
+	          
+	      }
+	      ctx.strokeStyle = color;
+	      if (canvas == "graph"){
+	          ctx.lineWidth = "4";
+	      } else {
+	          ctx.lineWidth = "2";
+
+	      }
+    }
+    drawText(xStart, xEnd, xOffset, xFactor) {
+        // fired on every redraw (for optimization - only fire when slider is moved)
+        // takes the range start, end
+        // better to draw this with each line draw OR use the same formulas
+        // TODO make new consts for repetitive formulas, like calc position with offset
+        
+        
+	      let dateSkipCounter = 0;
+	      let skipFactor;
+	      skipFactor = Math.floor(80 / xFactor);
+
+
+        let y =this.graph.height - 5;
+        let currentX = 0; 
+
+        for (let i = xStart; i < xEnd + 1; i++) {
+            if (dateSkipCounter == 0) {
+                currentX = help.round((i - xStart) * xFactor - xOffset);
+                let date = new Date(this.x[i]);
+                date = MONTHS[date.getMonth()] + ' ' + date.getDate();
+                this.iCtx.fillText(date, currentX, y);
+
+                // skipping some of them
+                dateSkipCounter = skipFactor;
+            } else {
+                dateSkipCounter -= 1;
+            }
+        } 
+
+		    // if (iteration == 0 && dateSkipCounter == 0 && mode != "partial" &&
+		    //     this.isAnyArrayActive()){
+		    //     let date = new Date(this.x[i]);
+		    //     date = MONTHS[date.getMonth()] + ' ' + date.getDate();
+		    //     ctx.fillText(date, x, this.graph.height - 5);
+
+		    //     // skipping some of them
+		    //     dateSkipCounter = skipFactor;
+		    // } else {
+		    //     dateSkipCounter -= 1;
+		    // }
+    }
+    drawHorizontalLineAboveText(){ // above dates
+	      this.iCtx.beginPath();
+	      this.iCtx.strokeStyle = "grey";
+	      this.iCtx.moveTo(0, this.graph.height - DATESPACE + 2);
+	      this.iCtx.lineTo(this.graph.width, this.graph.height - DATESPACE + 2);
+	      this.iCtx.stroke();
+    }
+    drawNumbers() {
+        let drawNumbers = () =>{
+	          // drawing the numbers on the left side
+	          let y = this.graph.height - DATESPACE;
+	          let curNum = 0;
+            let rowStep = this.graphCeiling / NUMOFROWS;
+            let rowHeight = (this.graph.height - DATESPACE) / NUMOFROWS;
+            // TODO round floats
+
+	          
+	          this.iCtx.fillStyle = "grey";
+	          this.iCtx.font = "14px Helvetica"; //font for the numbers
+	          for (let i=0; i < NUMOFROWS; i++){
+		            this.iCtx.fillText(curNum, this.minimap.getBoundingClientRect().left, y - 10);
+		            
+		            curNum += rowStep;
+		            y -= rowHeight;
+	          }
+
+	      };
+	      if (this.isAnyArrayActive()){ //in case no array is selected
+	          drawNumbers();
+	          
+	      } else {
+	          this.iCtx.globalAlpha = 1 - this.opacity;
+	          this.iCtx.font = `80px sans-serif`;
+	          this.iCtx.fillText("N/A", this.graph.width / 2 - 40, this.graph.height / 2);
+	      }
+
+    }
     moveSlider(event){
         let movementX = event.movementX;
         event.preventDefault();
@@ -606,17 +767,23 @@ class Chart{
     }
     tooltip({clientX}){
         // gets the current mouse position and prints the appropriate array values
-        let cutoutSize = this.end - this.beginning;
-        let columnWidth = this.graph.width / cutoutSize;
+        let cutoutSize = this.sliderColumnEnd - this.sliderColumnStart;
+        let columnWidth = this.graph.width / this.cutoutScreenColumnSize;
         let currentGraphColumn = Math.round(clientX / columnWidth);
-        let currentXPos = currentGraphColumn * this.columnWidth;
 
-        let currentArrayColumn = this.beginning + currentGraphColumn;
 
-        let conversionQuotient = (this.graph.height - this.dateSpace) / this.ceiling;
+        let currentArrayColumn = this.sliderColumnStart + currentGraphColumn;
+
+        let conversionQuotient = (this.graph.height - DATESPACE) / this.oldCeiling;
         let convertedVal;
         let date;
 
+        // TODO optimize this code for offset
+        let xOffset = this.sliderOffset / this.minimap.width * this.graph.width;
+        let numOfCutColumns = this.sliderColumnEnd - this.sliderColumnStart;
+        xOffset = xOffset / numOfCutColumns * this.x.length;
+
+        let currentXPos = currentGraphColumn * columnWidth - xOffset;
         let displayTooltip = () => {
             // displaying the tooltip
 
@@ -655,14 +822,14 @@ class Chart{
 
         let drawCircles = () => {
             // drawing the circles for each line based on its configuration
-            let ber;
+            let number;
             let name;
             let style;
             for (let i in this.lines){
                 if (this.lines[i]["checkbox"].checked){
                     convertedVal =
                         this.graph.height - this.lines[i]["array"][currentArrayColumn] *
-                        conversionQuotient - this.dateSpace;
+                        conversionQuotient - DATESPACE;
 
 
 
@@ -686,11 +853,11 @@ class Chart{
             }
 
         };
-        let drawHorizontalLine = () => {
+        let drawVerticalLine = () => {
 
             this.iCtx.beginPath();
             this.iCtx.moveTo(currentXPos, 0);
-            this.iCtx.lineTo(currentXPos, this.graph.height - this.dateSpace);
+            this.iCtx.lineTo(currentXPos, this.graph.height - DATESPACE);
 
             this.iCtx.lineWidth = "2";
             this.iCtx.strokeStyle = "#777";
@@ -700,7 +867,7 @@ class Chart{
         //check if i have shifted columns to know if i should redraw
         let start = 0;
         let end = 0;
-        if (this.currentColumnCursor != currentGraphColumn && this.isAnyArrayActive()){
+        /*if (this.currentColumnCursor != currentGraphColumn && this.isAnyArrayActive()){
             // change is negate or positive; +1
             let clearFactor; // proportional to the size of the columns
             // the bigger the columnsize - the smaller the number
@@ -738,8 +905,14 @@ class Chart{
             displayTooltip();
             drawHorizontalLine();
             drawCircles();
-        }
+        } */
 
+        this.currentColumnCursor = currentGraphColumn;
+        this.iCtx.clearRect(0, 0, this.info.width, this.info.height);
+        displayTooltip();
+        drawVerticalLine();
+        drawCircles();
+        // drawNumbers
 
     }
     isAnyArrayActive(){
