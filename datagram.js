@@ -12,6 +12,14 @@ const help = {
     }
 };
 
+const NIGHT = {
+    lead: "#1d2733"
+};
+const DAY = {
+    lead: "rgb(255, 255, 255)"
+};
+
+
 const myMath = {
     findPrettyMax: function (listOfArrays, xStart, xEnd) {
         // find the optimal ceiling for the graph (tries to find a round pretty number)
@@ -83,6 +91,221 @@ function initiateCharts(){
     importData();
 
 }
+
+function createLayout(chart){
+    let createMainElements = () => {
+        // main div
+        chart.div = document.createElement("div");
+        document.body.appendChild(chart.div);
+        chart.div.className = "main-container";
+
+        // title
+        let title = document.createElement("h1");
+        chart.div.appendChild(title);
+        title.textContent = chart.title;
+        chart.title = title;
+
+        // div for canvases
+        chart.canvases = document.createElement ("div");
+        chart.div.appendChild(chart.canvases);
+        chart.canvases.className = "canvases-container";
+
+        //graph
+        chart.graph = document.createElement("canvas");
+        chart.canvases.appendChild(chart.graph);
+        chart.gCtx = chart.graph.getContext("2d");
+        chart.graph.width = innerWidth - parseInt(getComputedStyle(chart.div).marginRight);
+        chart.graph.height = innerHeight / 2;
+        chart.div.style.position = "relative";
+
+        // canvas for the tooltop and text
+        chart.info = document.createElement("canvas");
+        chart.canvases.appendChild(chart.info);
+        chart.info.className = "info-canvas";
+
+        chart.iCtx = chart.info.getContext("2d");
+        chart.info.width = chart.graph.width;
+        chart.info.height = chart.graph.height;
+
+        chart.info.addEventListener("mousemove", chart.drawTooltip.bind(chart));
+
+        // container for the minimap and the slider
+        chart.miniDiv = document.createElement("div");
+        chart.div.appendChild(chart.miniDiv);
+        chart.miniDiv.className = "minimap-div";
+
+        chart.minimap = document.createElement("canvas");
+        chart.miniDiv.appendChild(chart.minimap);
+        chart.mCtx = chart.minimap.getContext("2d");
+        chart.minimap.width = innerWidth - (
+            parseInt(getComputedStyle(chart.miniDiv).marginLeft) +
+                parseInt(getComputedStyle(chart.div).marginRight));
+        chart.minimap.height = 75;
+
+    };
+    let createSlider = () => {
+
+        chart.lSpace = document.createElement("div");
+        chart.lSpace.id = "left-space";
+
+        chart.rSpace = document.createElement("div");
+        chart.rSpace.id = "right-space";
+
+        chart.slider = document.createElement("div");
+        chart.slider.id = "slider";
+
+        chart.lSpace.style.height = chart.minimap.height + "px";
+        chart.slider.style.height = chart.minimap.height - 6 + "px";
+        chart.rSpace.style.height = chart.minimap.height + "px";
+
+        chart.lSpace.style.left = 0 + "px";
+        chart.lSpace.style.width = innerWidth / 3 + "px";
+
+        chart.slider.style.left = parseInt(chart.lSpace.style.left) +
+            parseInt(chart.lSpace.style.width) + "px";
+        chart.slider.style.width = 200 + "px";
+
+
+        chart.rSpace.style.left =
+            parseInt(chart.slider.style.left) +
+            parseInt(chart.slider.style.width) + 12 + "px";
+
+        chart.rSpace.style.width = chart.minimap.width -
+            parseInt(chart.rSpace.style.left) + "px";
+
+
+        chart.miniDiv.appendChild(chart.lSpace);
+        chart.miniDiv.appendChild(chart.slider);
+        chart.miniDiv.appendChild(chart.rSpace);
+
+        let clrDiv = document.createElement("div");
+        chart.miniDiv.appendChild(clrDiv);
+        clrDiv.style.clear = "both";
+
+
+        let boundMoveSlider = chart.moveSlider.bind(chart);
+        chart.slider.addEventListener("mousedown", function(){
+            let sliderRect = chart.slider.getBoundingClientRect();
+
+            if (window.event.clientX < sliderRect.left + 20){
+                chart.movement = "left";
+            } else if (window.event.clientX > sliderRect.left +
+                       parseInt(getComputedStyle(chart.slider).width) - 20){
+                chart.movement = "right";
+            } else {
+                chart.movement = "mid";
+            }
+
+            window.addEventListener("mousemove", boundMoveSlider);
+        }.bind(chart)
+                                    );
+        window.addEventListener("mouseup", function (){
+            window.removeEventListener("mousemove", boundMoveSlider);
+        }.bind(chart)
+                               );
+
+        // mobile touch support
+        let mobileTouch = () => {
+            chart.slider.addEventListener("touchstart", function(){
+                chart.previousPosition = window.event.touches[0].clientX;
+                let sliderRect = chart.slider.getBoundingClientRect();
+
+                if (window.event.touches[0].clientX < sliderRect.left + 40){
+                    chart.movement = "left";
+                } else if (window.event.touches[0].clientX > sliderRect.left +
+                           parseInt(getComputedStyle(chart.slider).width) - 40){
+                    chart.movement = "right";
+                } else {
+                    chart.movement = "mid";
+                }
+
+                window.addEventListener("touchmove", boundMoveSlider);
+            }.bind(chart)
+                                        );
+            window.addEventListener("touchend", function (){
+                window.removeEventListener("touchmove", boundMoveSlider);
+            }.bind(chart)
+                                   );
+        };
+        mobileTouch();
+
+        let cursorListener = () => {
+            chart.configureSlider();
+            chart.slider.addEventListener("mousemove", function (event){
+                if (event.clientX - chart.sliderRect.left < 20){
+                    chart.slider.style.cursor = "w-resize";
+                } else if (event.clientX > chart.sliderRect.left + chart.sliderWidth){
+                    chart.slider.style.cursor = "e-resize";
+                } else {
+                    chart.slider.style.cursor = "move";
+
+                }
+            }.bind(chart)
+                                        );
+        };
+        cursorListener();
+
+    };
+    let createButtons = () => {
+        for(let i = 0; i < chart.lines.length; i++){
+            let label = document.createElement("label");
+            chart.miniDiv.appendChild(label);
+            label.className = "button-container";
+
+            let input = document.createElement("input");
+            input.type = "checkbox";
+            label.appendChild(input);
+            input.checked = true;
+            input.addEventListener("click", function (){
+                if (input.checked == false){
+                    chart.justBeenRemoved = chart.lines[i]["array"];
+                } else {
+                    chart.justBeenSelected = chart.lines[i]["array"];
+                }
+                chart.redraw();
+                // chart.drawMinimap();
+            }.bind(chart));
+            chart.lines[i]["checkbox"] = input;
+
+            let checkmark = document.createElement("span");
+            label.appendChild(checkmark);
+            //put text inside
+            let text = document.createElement("p");
+            label.appendChild(text);
+            text.appendChild(document.createTextNode(chart.lines[i].checkboxName));
+
+
+            checkmark.className = "checkmark";
+            // assign the border as the color
+            let color = chart.lines[i]["color"];
+            checkmark.style.border = "2px solid " + color;
+            checkmark.style.backgroundColor = color;
+            input.addEventListener("change", function () {
+                if (chart.checked){
+                    checkmark.style.backgroundColor = color;
+                } else {
+                    checkmark.style.backgroundColor = document.body.style.backgroundColor;
+                }
+            });
+
+        }
+    };
+    let createTooltip = () => {
+        chart.tooltip = document.createElement("div");
+        chart.div.appendChild(chart.tooltip);
+        chart.tooltip.className = "myTooltip";
+        // chart.tooltip.style.backgroundColor = DAY.lead;
+
+    };
+
+    createMainElements();
+    createSlider();
+    createButtons();
+    createTooltip();
+
+
+}
+
 class Chart{
     // takes data upon creation
     constructor(data, title){
@@ -90,7 +313,7 @@ class Chart{
         this.title = title;
 
         this.convertData();
-        this.createLayout();
+        createLayout(this);
         this.initialConfigure();
 
         this.drawGraph();
@@ -136,222 +359,6 @@ class Chart{
             }
         }
         this.x.splice(0, 1);
-
-    }
-    createLayout(){
-        let createMainElements = () => {
-            // main div
-            this.div = document.createElement("div");
-            document.body.appendChild(this.div);
-            this.div.className = "main-container";
-
-            // title
-            let title = document.createElement("h1");
-            this.div.appendChild(title);
-            title.innerHTML = this.title;
-            this.title = title;
-
-            // div for canvases
-            this.canvases = document.createElement ("div");
-            this.div.appendChild(this.canvases);
-            this.canvases.className = "canvases-container";
-
-            //graph
-            this.graph = document.createElement("canvas");
-            this.canvases.appendChild(this.graph);
-            this.gCtx = this.graph.getContext("2d");
-            this.graph.width = innerWidth - parseInt(getComputedStyle(this.div).marginRight);
-            this.graph.height = innerHeight / 2;
-            this.graph.style.backgroundColor = "white";
-            this.div.style.position = "relative";
-
-            // canvas for the tooltop and text
-            this.info = document.createElement("canvas");
-            this.canvases.appendChild(this.info);
-            this.info.style.position = "absolute";
-            this.info.style.left = 0;
-            this.info.style.top = 0;
-
-            this.iCtx = this.info.getContext("2d");
-            this.info.width = this.graph.width;
-            this.info.height = this.graph.height;
-            this.info.style.backgroundColor = "rgba(0, 0, 0, 0)";
-
-            this.info.addEventListener("mousemove", this.tooltip.bind(this));
-
-            // container for the minimap and the slider
-            this.miniDiv = document.createElement("div");
-            this.div.appendChild(this.miniDiv);
-            this.miniDiv.className = "minimap-div";
-
-            this.minimap = document.createElement("canvas");
-            this.miniDiv.appendChild(this.minimap);
-            this.mCtx = this.minimap.getContext("2d");
-            this.minimap.width = innerWidth - (
-                parseInt(getComputedStyle(this.miniDiv).marginLeft) +
-                    parseInt(getComputedStyle(this.div).marginRight));
-            this.minimap.height = 75;
-            this.minimap.style.backgroundColor = this.graph.style.backgroundColor;
-            this.minimap.id = "minimap";
-
-        };
-        let createSlider = () => {
-
-            this.lSpace = document.createElement("div");
-            this.lSpace.id = "left-space";
-
-            this.rSpace = document.createElement("div");
-            this.rSpace.id = "right-space";
-
-            this.slider = document.createElement("div");
-            this.slider.id = "slider";
-
-            this.lSpace.style.height = this.minimap.height + "px";
-            this.slider.style.height = this.minimap.height - 6 + "px";
-            this.rSpace.style.height = this.minimap.height + "px";
-
-            this.lSpace.style.left = 0 + "px";
-            this.lSpace.style.width = innerWidth / 3 + "px";
-
-            this.slider.style.left = parseInt(this.lSpace.style.left) +
-                parseInt(this.lSpace.style.width) + "px";
-            this.slider.style.width = 200 + "px";
-
-
-            this.rSpace.style.left =
-                parseInt(this.slider.style.left) +
-                parseInt(this.slider.style.width) + 12 + "px";
-
-            this.rSpace.style.width = this.minimap.width -
-                parseInt(this.rSpace.style.left) + "px";
-
-
-            this.miniDiv.appendChild(this.lSpace);
-            this.miniDiv.appendChild(this.slider);
-            this.miniDiv.appendChild(this.rSpace);
-
-            let clrDiv = document.createElement("div");
-            this.miniDiv.appendChild(clrDiv);
-            clrDiv.style.clear = "both";
-
-
-            let boundMoveSlider = this.moveSlider.bind(this);
-            this.slider.addEventListener("mousedown", function(){
-                let sliderRect = this.slider.getBoundingClientRect();
-
-                if (window.event.clientX < sliderRect.left + 20){
-                    this.movement = "left";
-                } else if (window.event.clientX > sliderRect.left +
-                           parseInt(getComputedStyle(this.slider).width) - 20){
-                    this.movement = "right";
-                } else {
-                    this.movement = "mid";
-                }
-
-                window.addEventListener("mousemove", boundMoveSlider);
-            }.bind(this)
-                                        );
-            window.addEventListener("mouseup", function (){
-                window.removeEventListener("mousemove", boundMoveSlider);
-            }.bind(this)
-                                   );
-
-            // mobile touch options
-            this.slider.addEventListener("touchstart", function(){
-                this.previousPosition = window.event.touches[0].clientX;
-                let sliderRect = this.slider.getBoundingClientRect();
-
-                if (window.event.touches[0].clientX < sliderRect.left + 40){
-                    this.movement = "left";
-                } else if (window.event.touches[0].clientX > sliderRect.left +
-                           parseInt(getComputedStyle(this.slider).width) - 40){
-                    this.movement = "right";
-                } else {
-                    this.movement = "mid";
-                }
-
-                window.addEventListener("touchmove", boundMoveSlider);
-            }.bind(this)
-                                        );
-            window.addEventListener("touchend", function (){
-                window.removeEventListener("touchmove", boundMoveSlider);
-            }.bind(this)
-                                   );
-
-            let cursorListener = () => {
-                this.configureSlider();
-                this.slider.addEventListener("mousemove", function (event){
-                    if (event.clientX - this.sliderRect.left < 20){
-                        this.slider.style.cursor = "w-resize";
-                    } else if (event.clientX > this.sliderRect.left + this.sliderWidth){
-                        this.slider.style.cursor = "e-resize";
-                    } else {
-                        this.slider.style.cursor = "move";
-
-                    }
-                }.bind(this)
-                                            );
-            };
-
-            cursorListener();
-        };
-        let createButtons = () => {
-            for(let i = 0; i < this.lines.length; i++){
-                let label = document.createElement("label");
-                this.miniDiv.appendChild(label);
-                label.className = "button-container";
-
-                let input = document.createElement("input");
-                input.type = "checkbox";
-                label.appendChild(input);
-                input.checked = true;
-                input.addEventListener("click", function (){
-                    if (input.checked == false){
-                        this.justBeenRemoved = this.lines[i]["array"];
-                    } else {
-                        this.justBeenSelected = this.lines[i]["array"];
-                    }
-                    this.redraw();
-                    // this.drawMinimap();
-                }.bind(this));
-                this.lines[i]["checkbox"] = input;
-
-                let checkmark = document.createElement("span");
-                label.appendChild(checkmark);
-                //put text inside
-                let text = document.createElement("p");
-                label.appendChild(text);
-                text.appendChild(document.createTextNode(this.lines[i].checkboxName));
-
-
-                checkmark.className = "checkmark";
-                // assign the border as the color
-                let color = this.lines[i]["color"];
-                checkmark.style.border = "2px solid " + color;
-                checkmark.style.backgroundColor = color;
-                input.addEventListener("change", function () {
-                    if (this.checked){
-                        checkmark.style.backgroundColor = color;
-                    } else {
-                        checkmark.style.backgroundColor = document.body.style.backgroundColor;
-                    }
-                });
-
-            }
-        };
-        let createTooltip = () => {
-            this.tooltip = document.createElement("div");
-            this.div.appendChild(this.tooltip);
-            this.tooltip.className = "myTooltip";
-            this.tooltip.style.backgroundColor = this.graph.style.backgroundColor;
-
-        };
-
-        createMainElements();
-        createSlider();
-        createButtons();
-        createTooltip();
-
 
     }
     // configuring the graph
@@ -765,7 +772,7 @@ class Chart{
         this.sliderRect = this.slider.getBoundingClientRect();
         this.sliderWidth = parseInt(getComputedStyle(this.slider).width);
     }
-    tooltip({clientX}){
+    drawTooltip({clientX}){
         // gets the current mouse position and prints the appropriate array values
         let cutoutSize = this.sliderColumnEnd - this.sliderColumnStart;
         let columnWidth = this.graph.width / this.cutoutScreenColumnSize;
@@ -792,12 +799,12 @@ class Chart{
             date = new Date(this.x[currentArrayColumn]);
             date = DOW[date.getDay()] + ", " + MONTHS[date.getMonth()] + ' ' + date.getDate();
             let color;
-            if (this.graph.style.backgroundColor == "white"){
-                color = "black";
-                this.tooltip.style.backgroundColor = "white";
+            if (getComputedStyle(document.body).backgroundColor == DAY.lead){
+                color = NIGHT.lead;
+                this.tooltip.style.backgroundColor = DAY.lead;
             } else {
-                color = "white";
-                this.tooltip.style.backgroundColor = "#1d2733";
+                color = DAY.lead;
+                this.tooltip.style.backgroundColor = NIGHT.lead;
 
             }
             this.tooltip.innerHTML = `<p style="color:${color};">${date}</p>`;
@@ -836,7 +843,7 @@ class Chart{
                     this.iCtx.beginPath();
                     this.iCtx.arc(currentXPos, convertedVal,
                                   10, 0, Math.PI * 2);
-                    this.iCtx.fillStyle = this.graph.style.backgroundColor;
+                    this.iCtx.fillStyle = getComputedStyle(document.body).backgroundColor;
                     this.iCtx.strokeStyle = this.lines[i]["color"];
                     this.iCtx.fill();
                     this.iCtx.stroke();
@@ -930,10 +937,10 @@ class Chart{
 
 function switchTheme(){
     let color;
-    if (getComputedStyle(document.body).backgroundColor == "rgb(255, 255, 255)"){
-        color = "#1d2733";
+    if (getComputedStyle(document.body).backgroundColor == DAY.lead){
+        color = NIGHT.lead;
     } else {
-        color = "white";
+        color = DAY.lead;
     }
 
     document.body.style.backgroundColor = color;
@@ -942,15 +949,18 @@ function switchTheme(){
         chart = arrayOfCharts[i];
         chart.graph.style.backgroundColor = color;
         chart.minimap.style.backgroundColor = color;
-        // change title color
+        // TODO change title color
         // tooltip color and
         // buttoncolor when unchecked
         // redraw everything upon click
-        if (color == "white"){
-            chart.div.style.color = "black";
+        if (color == DAY.lead){
+            chart.div.style.color = NIGHT.lead;
+            //chart.tooltip(window.event); // redraw the tooltip
+
             themeButton.innerHTML = "Switch to Night Mode";
         } else {
-            chart.div.style.color = "white";
+            chart.div.style.color = DAY.lead;
+            // chart.tooltip(window.event); // redraw the tooltip
             themeButton.innerHTML = "Switch to Day Mode";
         }
         chart.redraw();

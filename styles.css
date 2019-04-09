@@ -3,7 +3,7 @@
     margin: 0;
 }
 body{
-    background-color: white;
+    background-color: rgb(255, 255, 255);
     font-family: "Lucida Grande", "Lucida Sans Unicode", Arial, Helvetica, Verdana, sans-serif;
 
 }
@@ -20,12 +20,18 @@ canvas {
     position: relative;
 }
 
+.info-canvas {
+    position: absolute;
+    left: 0;
+    top: 0;
+    background-color: rgba(0, 0, 0, 0);
+}
+
+
 .minimap-div {
     position: relative;
     margin-top: 30px;
     margin-left: 2%;
-}
-#minimap {
 }
 
 h1 {
