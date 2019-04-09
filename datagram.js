@@ -7,7 +7,7 @@ const help = {
         return Math.round(number * 10) / 10;
     },
     calcXPositionOnCanvas: function() {
-        // TODO implement this
+        // TODO implement this; uses xFactor and shit in both text, line and nums
         
     }
 };
@@ -19,6 +19,12 @@ const DAY = {
     lead: "rgb(255, 255, 255)"
 };
 
+const SETTINGS = {
+    // TODO add the configuration params here
+    minmapHeight: 75,
+    mainContainerWidth: innerWidth / 2,
+    
+};
 
 const myMath = {
     findPrettyMax: function (listOfArrays, xStart, xEnd) {
@@ -95,6 +101,7 @@ function initiateCharts(){
 function createLayout(chart, title){
     let createMainElements = () => {
         // main div
+
         chart.div = document.createElement("div");
         document.body.appendChild(chart.div);
         chart.div.className = "main-container";
@@ -102,8 +109,8 @@ function createLayout(chart, title){
         // title
         let titleElem = document.createElement("h1");
         chart.div.appendChild(titleElem);
-        title.textContent = title;
-        chart.title = titleElem;
+        titleElem.textContent = title;
+        // chart.title = titleElem;
 
         // div for canvases
         chart.canvases = document.createElement ("div");
@@ -114,9 +121,11 @@ function createLayout(chart, title){
         chart.graph = document.createElement("canvas");
         chart.canvases.appendChild(chart.graph);
         chart.gCtx = chart.graph.getContext("2d");
-        chart.graph.width = innerWidth - parseInt(getComputedStyle(chart.div).marginRight);
-        chart.graph.height = innerHeight / 2;
-        chart.div.style.position = "relative";
+        chart.graph.width = parseInt(chart.div.clientWidth);
+        // chart.graph.width = parseInt(getComputedStyle(chart.div).width);
+
+        // chart.graph.width = innerWidth - parseInt(getComputedStyle(chart.div).marginRight);
+        chart.graph.height = 500;
 
         // canvas for the tooltop and text
         chart.info = document.createElement("canvas");
@@ -137,10 +146,12 @@ function createLayout(chart, title){
         chart.minimap = document.createElement("canvas");
         chart.miniDiv.appendChild(chart.minimap);
         chart.mCtx = chart.minimap.getContext("2d");
-        chart.minimap.width = innerWidth - (
-            parseInt(getComputedStyle(chart.miniDiv).marginLeft) +
-                parseInt(getComputedStyle(chart.div).marginRight));
-        chart.minimap.height = 75;
+        chart.minimap.width = parseInt(getComputedStyle(chart.miniDiv).width);
+
+        // chart.minimap.width = innerWidth - (
+        //     parseInt(getComputedStyle(chart.miniDiv).marginLeft) +
+        //         parseInt(getComputedStyle(chart.div).marginRight));
+        chart.minimap.height = parseInt(getComputedStyle(chart.miniDiv).height);
 
     };
     let createSlider = () => {
@@ -154,16 +165,17 @@ function createLayout(chart, title){
         chart.slider = document.createElement("div");
         chart.slider.id = "slider";
 
+        // sizes
         chart.lSpace.style.height = chart.minimap.height + "px";
         chart.slider.style.height = chart.minimap.height - 6 + "px";
         chart.rSpace.style.height = chart.minimap.height + "px";
 
         chart.lSpace.style.left = 0 + "px";
-        chart.lSpace.style.width = innerWidth / 3 + "px";
+        chart.lSpace.style.width = chart.minimap.width * 0.7 + "px";
 
         chart.slider.style.left = parseInt(chart.lSpace.style.left) +
             parseInt(chart.lSpace.style.width) + "px";
-        chart.slider.style.width = 200 + "px";
+        chart.slider.style.width = chart.minimap.width * 0.3 - 11 + "px";
 
 
         chart.rSpace.style.left =
@@ -178,12 +190,12 @@ function createLayout(chart, title){
         chart.miniDiv.appendChild(chart.slider);
         chart.miniDiv.appendChild(chart.rSpace);
 
-        let clrDiv = document.createElement("div");
-        chart.miniDiv.appendChild(clrDiv);
-        clrDiv.style.clear = "both";
+        // let clrDiv = document.createElement("div");
+        // chart.miniDiv.appendChild(clrDiv);
+        // clrDiv.style.clear = "both";
 
 
-        let boundMoveSlider = chart.moveSlider.bind(chart);
+        let boundMoveSlider = moveSlider.bind(chart);
         chart.slider.addEventListener("mousedown", function(){
             let sliderRect = chart.slider.getBoundingClientRect();
 
@@ -230,7 +242,7 @@ function createLayout(chart, title){
         mobileTouch();
 
         let cursorListener = () => {
-            chart.configureSlider();
+            configureSlider(chart);
             chart.slider.addEventListener("mousemove", function (event){
                 if (event.clientX - chart.sliderRect.left < 20){
                     chart.slider.style.cursor = "w-resize";
@@ -247,9 +259,11 @@ function createLayout(chart, title){
 
     };
     let createButtons = () => {
+        let buttons = document.createElement("div");
+        chart.div.appendChild(buttons);
         for(let i = 0; i < chart.lines.length; i++){
             let label = document.createElement("label");
-            chart.miniDiv.appendChild(label);
+            buttons.appendChild(label);
             label.className = "button-container";
 
             let input = document.createElement("input");
@@ -289,6 +303,10 @@ function createLayout(chart, title){
             });
 
         }
+        
+        let clrDiv = document.createElement("div");
+        buttons.appendChild(clrDiv);
+        clrDiv.style.clear = "both";
     };
     let createTooltip = () => {
         chart.tooltip = document.createElement("div");
@@ -304,6 +322,132 @@ function createLayout(chart, title){
     createTooltip();
 
 
+}
+function moveSlider(event){
+    let movementX = event.movementX;
+    event.preventDefault();
+
+    if (event.type === "touchmove"){ // check if on mobile
+        movementX = Math.round(event.touches[0].clientX - this.previousPosition);
+        this.previousPosition = event.touches[0].clientX;
+    }
+
+    let sliderStyle = getComputedStyle(this.slider);
+    let lSpaceStyle = getComputedStyle(this.lSpace);
+    let rSpaceStyle = getComputedStyle(this.rSpace);
+    let border = parseInt(sliderStyle.borderRightWidth) * 2;
+
+
+    let moveMiddle = () => {
+
+        this.lSpace.style.width = parseInt(lSpaceStyle.width) + movementX + "px";
+
+        this.rSpace.style.left = parseInt(rSpaceStyle.left) + movementX + "px";
+        this.rSpace.style.width = parseInt(rSpaceStyle.width) - movementX + "px";
+
+        this.slider.style.left = parseInt(sliderStyle.left) + movementX + "px";
+
+
+        if (parseInt(sliderStyle.left) < 0){
+
+            this.lSpace.style.width = parseInt(sliderStyle.left) - border / 2 + "px";
+
+            this.slider.style.left = parseInt(sliderStyle.left) - movementX + "px";
+            this.rSpace.style.left = parseInt(rSpaceStyle.left) - movementX + "px";
+            this.rSpace.style.width = parseInt(rSpaceStyle.width) + movementX + "px";
+
+
+        }
+        if ((parseInt(sliderStyle.left) + parseInt(sliderStyle.width)) >
+            this.minimap.width - border){
+
+            this.slider.style.left = parseInt(sliderStyle.left) - movementX + "px";
+
+            this.lSpace.style.width = parseInt(lSpaceStyle.width) - movementX + "px";
+
+
+            this.rSpace.style.left = parseInt(sliderStyle.left) +
+                parseInt(sliderStyle.width) + border  + "px";
+            this.rSpace.style.width = this.minimap.width -
+                parseInt(this.rSpace.style.left) + "px";
+
+
+        }
+
+    };
+
+    let moveLeft = () => {
+
+        this.lSpace.style.width = parseInt(lSpaceStyle.width) + movementX + "px";
+
+        this.slider.style.left = parseInt(sliderStyle.left) + movementX + "px";
+        this.slider.style.width = parseInt(sliderStyle.width) - movementX + "px";
+
+
+        if (parseInt(sliderStyle.left) < 0){ // side of screen
+
+            this.lSpace.style.width = parseInt(sliderStyle.left) - border / 2 + "px";
+
+            this.slider.style.left = parseInt(sliderStyle.left) - movementX + "px";
+            this.slider.style.width = parseInt(sliderStyle.width) + movementX + "px";
+        }
+
+        if (parseInt(sliderStyle.width) < 150){
+
+            this.lSpace.style.width = parseInt(lSpaceStyle.width) - movementX + "px";
+
+            this.slider.style.left = parseInt(sliderStyle.left) - movementX + "px";
+            this.slider.style.width = parseInt(sliderStyle.width) + movementX + "px";
+        }
+
+    };
+
+    let moveRight = () => {
+        this.slider.style.width = parseInt(sliderStyle.width) + movementX + "px";
+
+        this.rSpace.style.left = parseInt(rSpaceStyle.left) + movementX + "px";
+        this.rSpace.style.width = parseInt(rSpaceStyle.width) - movementX + "px";
+
+
+        if ((parseInt(sliderStyle.left) + parseInt(sliderStyle.width)) >
+            this.minimap.width - border){
+
+            this.slider.style.width = parseInt(sliderStyle.width) - movementX + "px";
+
+            this.rSpace.style.left = parseInt(sliderStyle.left) +
+                parseInt(sliderStyle.width) + border + "px";
+            this.rSpace.style.width = this.minimap.width -
+                parseInt(this.rSpace.style.left) + "px";
+
+        }
+
+        if (parseInt(sliderStyle.width) < 150){
+
+            this.slider.style.width = parseInt(sliderStyle.width) - movementX + "px";
+
+            this.rSpace.style.left = parseInt(rSpaceStyle.left) - movementX +  "px";
+            this.rSpace.style.width = parseInt(rSpaceStyle.width) + movementX +  "px";
+        }
+    };
+
+    // checking mouse position on the button
+    if (this.movement == "left"){
+        moveLeft();
+    } else if (this.movement == "right"){
+        moveRight();
+    } else {
+        moveMiddle();
+    }
+
+    // apply all that shit
+    this.redraw();
+    // TODO recalculate the position of the
+    configureSlider(this);
+
+}
+function configureSlider(chart){
+    chart.sliderRect = chart.slider.getBoundingClientRect();
+    chart.sliderWidth = parseInt(getComputedStyle(chart.slider).width);
 }
 
 class Chart{
@@ -441,7 +585,6 @@ class Chart{
         let areaWidth = xEndPoint - xStartPoint;
 
         // let cutoutWidth = this.cutoutWidth / this.minimap.width * this.graph.width;
-        // console.log("cutoutWidth", cutoutWidth);
 
         // xFactor is essentially column width
         let xFactor = areaWidth / columnFactor; //used to calculate the number of columns on the screen
@@ -629,7 +772,7 @@ class Chart{
 	          this.iCtx.fillStyle = "grey";
 	          this.iCtx.font = "14px Helvetica"; //font for the numbers
 	          for (let i=0; i < NUMOFROWS; i++){
-		            this.iCtx.fillText(curNum, this.minimap.getBoundingClientRect().left, y - 10);
+		            this.iCtx.fillText(curNum, 20, y - 10);
 		            
 		            curNum += rowStep;
 		            y -= rowHeight;
@@ -646,137 +789,11 @@ class Chart{
 	      }
 
     }
-    moveSlider(event){
-        let movementX = event.movementX;
-        event.preventDefault();
-
-        if (event.type === "touchmove"){ // check if on mobile
-            movementX = Math.round(event.touches[0].clientX - this.previousPosition);
-            this.previousPosition = event.touches[0].clientX;
-        }
-
-        let sliderStyle = getComputedStyle(this.slider);
-        let lSpaceStyle = getComputedStyle(this.lSpace);
-        let rSpaceStyle = getComputedStyle(this.rSpace);
-        let border = parseInt(sliderStyle.borderRightWidth) * 2;
-
-
-        let moveMiddle = () => {
-
-            this.lSpace.style.width = parseInt(lSpaceStyle.width) + movementX + "px";
-
-            this.rSpace.style.left = parseInt(rSpaceStyle.left) + movementX + "px";
-            this.rSpace.style.width = parseInt(rSpaceStyle.width) - movementX + "px";
-
-            this.slider.style.left = parseInt(sliderStyle.left) + movementX + "px";
-
-
-            if (parseInt(sliderStyle.left) < 0){
-
-                this.lSpace.style.width = parseInt(sliderStyle.left) - border / 2 + "px";
-
-                this.slider.style.left = parseInt(sliderStyle.left) - movementX + "px";
-                this.rSpace.style.left = parseInt(rSpaceStyle.left) - movementX + "px";
-                this.rSpace.style.width = parseInt(rSpaceStyle.width) + movementX + "px";
-
-
-            }
-            if ((parseInt(sliderStyle.left) + parseInt(sliderStyle.width)) >
-                this.minimap.width - border){
-
-                this.slider.style.left = parseInt(sliderStyle.left) - movementX + "px";
-
-                this.lSpace.style.width = parseInt(lSpaceStyle.width) - movementX + "px";
-
-
-                this.rSpace.style.left = parseInt(sliderStyle.left) +
-                    parseInt(sliderStyle.width) + border  + "px";
-                this.rSpace.style.width = this.minimap.width -
-                    parseInt(this.rSpace.style.left) + "px";
-
-
-            }
-
-        };
-
-        let moveLeft = () => {
-
-            this.lSpace.style.width = parseInt(lSpaceStyle.width) + movementX + "px";
-
-            this.slider.style.left = parseInt(sliderStyle.left) + movementX + "px";
-            this.slider.style.width = parseInt(sliderStyle.width) - movementX + "px";
-
-
-            if (parseInt(sliderStyle.left) < 0){ // side of screen
-
-                this.lSpace.style.width = parseInt(sliderStyle.left) - border / 2 + "px";
-
-                this.slider.style.left = parseInt(sliderStyle.left) - movementX + "px";
-                this.slider.style.width = parseInt(sliderStyle.width) + movementX + "px";
-            }
-
-            if (parseInt(sliderStyle.width) < 150){
-
-                this.lSpace.style.width = parseInt(lSpaceStyle.width) - movementX + "px";
-
-                this.slider.style.left = parseInt(sliderStyle.left) - movementX + "px";
-                this.slider.style.width = parseInt(sliderStyle.width) + movementX + "px";
-            }
-
-        };
-
-        let moveRight = () => {
-            this.slider.style.width = parseInt(sliderStyle.width) + movementX + "px";
-
-            this.rSpace.style.left = parseInt(rSpaceStyle.left) + movementX + "px";
-            this.rSpace.style.width = parseInt(rSpaceStyle.width) - movementX + "px";
-
-
-            if ((parseInt(sliderStyle.left) + parseInt(sliderStyle.width)) >
-                this.minimap.width - border){
-
-                this.slider.style.width = parseInt(sliderStyle.width) - movementX + "px";
-
-                this.rSpace.style.left = parseInt(sliderStyle.left) +
-                    parseInt(sliderStyle.width) + border + "px";
-                this.rSpace.style.width = this.minimap.width -
-                    parseInt(this.rSpace.style.left) + "px";
-
-            }
-
-            if (parseInt(sliderStyle.width) < 150){
-
-                this.slider.style.width = parseInt(sliderStyle.width) - movementX + "px";
-
-                this.rSpace.style.left = parseInt(rSpaceStyle.left) - movementX +  "px";
-                this.rSpace.style.width = parseInt(rSpaceStyle.width) + movementX +  "px";
-            }
-        };
-
-        // checking mouse position on the button
-        if (this.movement == "left"){
-            moveLeft();
-        } else if (this.movement == "right"){
-            moveRight();
-        } else {
-            moveMiddle();
-        }
-
-        // apply all that shit
-        this.redraw();
-        // TODO recalculate the position of the
-        this.configureSlider();
-
-    }
-    configureSlider(){
-        this.sliderRect = this.slider.getBoundingClientRect();
-        this.sliderWidth = parseInt(getComputedStyle(this.slider).width);
-    }
     drawTooltip({clientX}){
         // gets the current mouse position and prints the appropriate array values
         let cutoutSize = this.sliderColumnEnd - this.sliderColumnStart;
         let columnWidth = this.graph.width / this.cutoutScreenColumnSize;
-        let currentGraphColumn = Math.round(clientX / columnWidth);
+        let currentGraphColumn = Math.round((clientX - this.graph.getBoundingClientRect().left)  / columnWidth);
 
 
         let currentArrayColumn = this.sliderColumnStart + currentGraphColumn;
@@ -874,6 +891,7 @@ class Chart{
         //check if i have shifted columns to know if i should redraw
         let start = 0;
         let end = 0;
+        // partial redraw
         /*if (this.currentColumnCursor != currentGraphColumn && this.isAnyArrayActive()){
             // change is negate or positive; +1
             let clearFactor; // proportional to the size of the columns
@@ -982,41 +1000,244 @@ function putThemeButton(){
     themeButton.addEventListener("click", switchTheme);
 }
 
+let throttled;
 function onResize(){
     // reset canvases (reconfigure their sizes) and redraw
     // add drawMinimap to redraw in this case
-    let chart;
-    for (let i = 0; i < arrayOfCharts.length; i++){
-        chart = arrayOfCharts[i];
+    if (!throttled) {
+        let chart;
+        for (let i = 0; i < arrayOfCharts.length; i++){
+            chart = arrayOfCharts[i];
+            let oldChange = () => {
+                chart.graph.width = innerWidth - parseInt(getComputedStyle(chart.div).marginRight);
+                chart.graph.height = innerHeight / 2;
+                chart.minimap.width = innerWidth - (
+                    parseInt(getComputedStyle(chart.miniDiv).marginLeft) +
+                        parseInt(getComputedStyle(chart.div).marginRight));
+                // chart.minimap.height = 75;
 
-        chart.graph.width = innerWidth - parseInt(getComputedStyle(chart.div).marginRight);
-        chart.graph.height = innerHeight / 2;
-        chart.minimap.width = innerWidth - (
-            parseInt(getComputedStyle(chart.miniDiv).marginLeft) +
-                parseInt(getComputedStyle(chart.div).marginRight));
-        chart.minimap.height = 75;
 
+                chart.lSpace.style.left = 0 + "px";
+                chart.lSpace.style.width = 200 + "px";
 
-        chart.lSpace.style.left = 0 + "px";
-        chart.lSpace.style.width = 200 + "px";
+                chart.slider.style.left = parseInt(chart.lSpace.style.left) +
+                    parseInt(chart.lSpace.style.width) + "px";
+                chart.slider.style.width = innerWidth / 3 + "px";
 
-        chart.slider.style.left = parseInt(chart.lSpace.style.left) +
-            parseInt(chart.lSpace.style.width) + "px";
-        chart.slider.style.width = innerWidth / 3 + "px";
+                chart.rSpace.style.left =
+                    parseInt(chart.slider.style.left) +
+                    parseInt(chart.slider.style.width) + 12 + "px";
 
-        chart.rSpace.style.left =
-            parseInt(chart.slider.style.left) +
-            parseInt(chart.slider.style.width) + 12 + "px";
+                chart.rSpace.style.width = chart.minimap.width -
+                    parseInt(chart.rSpace.style.left) + "px";
 
-        chart.rSpace.style.width = chart.minimap.width -
-            parseInt(chart.rSpace.style.left) + "px";
+                chart.drawMinimap();
+                chart.redraw("full");
+                // TODO resize the info canvas also
+            };
+            // adjust and redraw canvases
+            chart.graph.widh
+            // adjust slider
+            // chart.graph.style.width = innerWidth / 2 + "px";//- parseInt(getComputedStyle(chart.div).marginRight);
+        }
+        throttled = true;
+        setTimeout(function() {
+            throttled = false;
+        }, 250);
 
-        chart.drawMinimap();
-        chart.redraw("full");
-
-    }
+    } 
 
 }
 
-initiateCharts();
+// initiateCharts();
 window.addEventListener("resize", onResize);
+
+
+
+
+// STAGE 2
+
+
+class lineChart{
+    constructor(){
+        // importDays(1);
+    }
+}
+
+class line2XChart{
+    constructor(){
+        
+    }
+}
+
+class stackedBarChart{
+    constructor(){
+        
+    }
+}
+
+class barChart{
+    constructor(data){
+        this.days = [];
+        importDays(4, this.days);
+        // dummies
+        this.lines = [];
+        
+        createLayout(this, data["names"]["y0"]);
+
+
+        this.destructureData(data);
+        // this.drawRectangle(data["colors"]["y0"]);
+        this.drawGraph();
+
+    }
+    destructureData(data){
+        console.log("the data", data);
+        this.x = data["columns"][0];
+        this.y = data["columns"][1];
+        this.x.splice(0, 1);
+        this.y.splice(0, 1);
+        this.color = data["colors"]["y0"];
+    }
+
+    drawGraph(){
+        this.drawBars(this.y, 300, this.x.length, this.color);
+    }
+
+    drawBars(array, xStart, xEnd, color){
+        let ceiling = Math.max(...array.slice(xStart, xEnd)); // TODO reuse old code and find pretty nums
+        let areaHeight = this.graph.height - DATESPACE;
+        let areaWidth = this.graph.width;
+
+        let numOfColumns = xEnd - xStart;
+        let columnWidth = this.graph.width / numOfColumns;
+        console.log(numOfColumns, xEnd, xStart);
+
+        let yFactor = areaHeight / ceiling;
+        let currentX = 0;
+        let currentY = areaHeight - array[0] * yFactor;
+
+        let fillDistance = this.graph.height - DATESPACE - currentY; // on the Y axis
+        let fillWidth = this.graph.width / numOfColumns - 1; // on the X axis
+
+        this.gCtx.fillStyle = color;
+        for (let x = xStart; x < xEnd; x++) {
+            this.gCtx.fillRect(currentX, currentY, fillWidth, fillDistance);
+            console.log("curX", currentX);
+            console.log("olWid", columnWidth);
+
+            currentY = areaHeight - array[x] * yFactor;
+            currentX += columnWidth;
+            // TODO insert spaces between columns
+
+        }
+
+    }
+    redraw() {
+        console.log("redrawomg");
+        
+    }
+
+    // temporary dummies
+    drawTooltip(){
+        
+    }
+}
+
+
+class areaChart{
+    constructor(data){
+
+
+    }
+}
+
+
+
+
+
+
+
+//create an xhtml request, load overview
+function downloadDays(filename, whereToAppend){
+    let xmlhttp = new XMLHttpRequest();
+    xmlhttp.responseType = 'json';
+    xmlhttp.open('GET', filename, true);
+    xmlhttp.onload  = function() {
+        if (xmlhttp.response){
+            whereToAppend.push(xmlhttp.response);
+
+        }
+    };
+    xmlhttp.send(null);
+}
+
+let arrayOfNewCharts = [];
+let chartClasses = {
+    1: lineChart,
+    2: line2XChart,
+    3: stackedBarChart,
+    4: barChart,
+    5: areaChart
+};
+
+function initiateNewCharts(chartNumber){
+    let importMainData = () => { // 1
+        let xmlhttp = new XMLHttpRequest();
+        let url = `data/${chartNumber}/overview.json`;
+        xmlhttp.responseType = 'json';
+        xmlhttp.open('GET', url, true);
+        xmlhttp.onload  = function() {
+            createNewCharts(xmlhttp.response);
+        };
+        xmlhttp.send(null);
+    };
+    let createNewCharts = (data) => { // 2
+        arrayOfNewCharts.push(new chartClasses[chartNumber](data));
+    };
+
+    importMainData();
+}
+
+let year1 = [4, 12, 2018]; //start and end months
+let year2 = [1, 4, 2019];
+let years = [year1, year2];
+
+
+let filename;
+function importDays(chartNumber, whereToAppend){
+    for (let y = 0; y < years.length; y++){
+        for (let m = years[y][0]; m < years[y][1] + 1; m++){
+            let month = m;
+            if (month < 10) {month = '0' + month;}
+            let folder = `${years[y][2]}-${month}`;
+
+            for (let d = 1; d < 31; d++){
+                // import each object and append to the array of days which is a
+                // if it exists there
+                // TODO what if there's no response (no file)
+                let day = d;
+                if (day < 10) {day = '0' + day;}
+                let filename = `data/${chartNumber}/${folder}/${day}.json`;
+                // console.log(filename);
+                // TODO print the imported objects
+                // console.log(downloadDays(filename, whereToAppend));
+                downloadDays(filename, whereToAppend);
+
+                // TODO append to the corresponding object and then print all this shit
+
+
+            }
+        }
+    }
+}
+
+// initiate each chart; also appends each to arrayOfNewCharts
+for (let c = 1; c < 6; c++) {
+    initiateNewCharts(c);
+}
+
+
+function heya(){
+    console.log(arrayOfNewCharts[3].days);
+}
