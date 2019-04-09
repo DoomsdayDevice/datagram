@@ -92,7 +92,7 @@ function initiateCharts(){
 
 }
 
-function createLayout(chart){
+function createLayout(chart, title){
     let createMainElements = () => {
         // main div
         chart.div = document.createElement("div");
@@ -100,10 +100,10 @@ function createLayout(chart){
         chart.div.className = "main-container";
 
         // title
-        let title = document.createElement("h1");
-        chart.div.appendChild(title);
-        title.textContent = chart.title;
-        chart.title = title;
+        let titleElem = document.createElement("h1");
+        chart.div.appendChild(titleElem);
+        title.textContent = title;
+        chart.title = titleElem;
 
         // div for canvases
         chart.canvases = document.createElement ("div");
@@ -309,58 +309,58 @@ function createLayout(chart){
 class Chart{
     // takes data upon creation
     constructor(data, title){
-        this.data = data;
-        this.title = title;
+        // global vars
+        this.currentColumnCursor = undefined; // used to track which part of the info canv to redraw
+        this.cutoutScreenColumnSize = undefined; // used to calculate number of columns on the screen
+        this.sliderOffset = undefined; //tracks diff between slider pos and closest column
 
-        this.convertData();
-        createLayout(this);
-        this.initialConfigure();
+        this.convertData(data);
+        createLayout(this, title);
+        this.initialConfiguration();
 
         this.drawGraph();
         this.drawMinimap();
         // this.drawNumbers();
         // this.drawHorizontalLine();
 
-        // this.redraw("full");
-        // this.drawMinimap();
-
-
     }
-    convertData(){
-        // takes the passed data and converts into objects i can work with
+    convertData(data){
+
+        // takes the passed data and converts into objects i can easily work with
         this.lines = [];
         let findArrayByName = (name) => {
             // finds the corresponding array given the name and removes the first elem
-            for (let i in this.data.columns){
-                if (this.data.columns[i][0] === name){
-                    this.data.columns[i].splice(0, 1);
-                    return this.data.columns[i];
+            for (let i in data.columns){
+                if (data.columns[i][0] === name){
+                    data.columns[i].splice(0, 1);
+                    return data.columns[i];
                 }
             }
         };
 
-        for (let key in this.data.names){
+        for (let key in data.names){
             this.lines.push(
                 {
                     name: key,
                     array: findArrayByName(key),
-                    color: this.data.colors[key],
+                    color: data.colors[key],
                     active: true,
-                    checkboxName: this.data.names[key]
+                    checkboxName: data.names[key]
                 }
             );
         }
 
         // go through the data and find X
         this.x = [];
-        for (let i in this.data.columns){
-            if (this.data.columns[i][0] === 'x'){
-                this.x = this.data.columns[i];
+        for (let i in data.columns){
+            if (data.columns[i][0] === 'x'){
+                this.x = data.columns[i];
             }
         }
         this.x.splice(0, 1);
 
     }
+
     // configuring the graph
     calculateCutout () {
         // TODO gotta calc the columns and the offset
@@ -373,16 +373,15 @@ class Chart{
         this.sliderColumnStart = Math.floor(lPoint / mColumnWidth);
         this.sliderColumnEnd = Math.ceil(rPoint / mColumnWidth);
 
-        // offset: difference between the position column coords and slider coords
+        // offset: difference between the position of slider coords and closest column coords
         // gotta convert that to the graph offset in drawGraph
-        
         this.sliderOffset = lPoint - this.sliderColumnStart * mColumnWidth;
 
         // TODO round this float probably
 
 
     }
-    initialConfigure(){
+    initialConfiguration(){
 
         //  this.rowHeight = (this.graph.height - DATESPACE) / NUMOFROWS;
 
@@ -390,15 +389,16 @@ class Chart{
         this.calculateCutout();
         // configuring the initial ceiling so that the drawing func can check against it
         // TODO optimize this
+
+        // old ceilings are needed to track changes in graph heights
+        // graphCeiling is needed to dynamically stop animations
         this.oldCeiling = myMath.findPrettyMax(this.lines, 0, this.x.length);
         this.graphCeiling = myMath.findPrettyMax(this.lines, 0, this.x.length);
         this.oldMinimapCeiling = myMath.findPrettyMax(this.lines, 0, this.x.length);
 
-        this.ySmoothJump = 0;
-        this.smoothCounter = 0;
-        this.numOfSmoothFrames = 20;
+        // TODO is it better that each function has own opacity or maybe create a wrapper instead of
+        // it being gloabal
         this.opacity = 1;
-        this.currentColumnCursor = undefined;
 
 
         this.drawHorizontalLineAboveText();
