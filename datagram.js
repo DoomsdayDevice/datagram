@@ -130,7 +130,7 @@ function createLayout(chart, title){
         // chart.graph.width = innerWidth - parseInt(getComputedStyle(chart.div).marginRight);
         chart.graph.height = 500;
 
-        // canvas for the tooltop and text
+        // canvas for LINES NUMBERS DATES
         chart.info = document.createElement("canvas");
         chart.canvases.appendChild(chart.info);
         chart.info.className = "info-canvas";
@@ -139,7 +139,18 @@ function createLayout(chart, title){
         chart.info.width = chart.graph.width;
         chart.info.height = chart.graph.height;
 
-        chart.info.addEventListener("mousemove", chart.drawTooltip.bind(chart));
+        // canvas for the POPUP
+        chart.popup = document.createElement("canvas");
+        chart.canvases.appendChild(chart.popup);
+        chart.popup.className = "info-canvas";
+
+        chart.pCtx = chart.popup.getContext("2d");
+        chart.popup.width = chart.graph.width;
+        chart.popup.height = chart.graph.height;
+
+        chart.popup.addEventListener("mousemove", chart.drawPopup.bind(chart));
+
+
 
         // container for the minimap and the slider
         chart.miniDiv = document.createElement("div");
@@ -509,7 +520,6 @@ class Chart{
 
         this.drawGraphOnMovement();
         this.drawMinimap();
-        // this.drawNumbers();
         // this.drawHorizontalLine();
 
     }
@@ -614,6 +624,7 @@ class Chart{
         this.calculateCutout();
         this.configureGraphParams();
         this.drawText(this.graphDrawingParameters);
+        this.drawNumbers(this.graphDrawingParameters.ceiling);
         this.drawGraph();
 
     }
@@ -706,7 +717,7 @@ class Chart{
                 parameters.ceiling = currentCeiling;
                 currentCeiling += distributedDifference;
                 this.drawWrapper(parameters);
-                this.drawNumbers(parameters);
+                this.drawNumbers(parameters.ceiling);
                 counter += 1;
             }
         };
@@ -827,7 +838,7 @@ class Chart{
 	      this.iCtx.lineTo(this.graph.width, this.graph.height - DATESPACE + 2);
 	      this.iCtx.stroke();
     }
-    drawNumbers({ceiling}) {
+    drawNumbers(ceiling) {
 	      // drawing the numbers on the left side
 	      let y = this.graph.height - DATESPACE;
         this.iCtx.clearRect(0, 0, 300, y);
@@ -836,6 +847,8 @@ class Chart{
         let rowHeight = (this.graph.height - DATESPACE) / NUMOFROWS;
         // TODO round floats
 
+	      this.iCtx.font = "14px Helvetica"; //font for the numbers
+	      this.iCtx.fillStyle = "grey";
 	      for (let i=0; i < NUMOFROWS; i++){
 		        this.iCtx.fillText(curNum, 20, y - 10);
 		        curNum += rowStep;
@@ -850,7 +863,7 @@ class Chart{
 	      // }
 
     }
-    drawTooltip({clientX}){
+    drawPopup({clientX}){
         // gets the current mouse position and prints the appropriate array values
         let cutoutSize = this.sliderColumnEnd - this.sliderColumnStart;
         let columnWidth = this.graph.width / this.numOfVisibleGraphColumns;
@@ -918,14 +931,14 @@ class Chart{
 
 
 
-                    this.iCtx.beginPath();
-                    this.iCtx.arc(currentXPos, convertedVal,
+                    this.pCtx.beginPath();
+                    this.pCtx.arc(currentXPos, convertedVal,
                                   10, 0, Math.PI * 2);
-                    this.iCtx.fillStyle = getComputedStyle(document.body).backgroundColor;
-                    this.iCtx.strokeStyle = this.lines[i]["color"];
-                    this.iCtx.fill();
-                    this.iCtx.stroke();
-                    this.iCtx.fillStyle = "black";
+                    this.pCtx.fillStyle = getComputedStyle(document.body).backgroundColor;
+                    this.pCtx.strokeStyle = this.lines[i]["color"];
+                    this.pCtx.fill();
+                    this.pCtx.stroke();
+                    this.pCtx.fillStyle = "black";
 
                     // get the date
                     number = this.lines[i]["array"][currentArrayColumn];
@@ -940,13 +953,13 @@ class Chart{
         };
         let drawVerticalLine = () => {
 
-            this.iCtx.beginPath();
-            this.iCtx.moveTo(currentXPos, 0);
-            this.iCtx.lineTo(currentXPos, this.graph.height - DATESPACE);
+            this.pCtx.beginPath();
+            this.pCtx.moveTo(currentXPos, 0);
+            this.pCtx.lineTo(currentXPos, this.graph.height - DATESPACE);
 
-            this.iCtx.lineWidth = "2";
-            this.iCtx.strokeStyle = "#777";
-            this.iCtx.stroke();
+            this.pCtx.lineWidth = "2";
+            this.pCtx.strokeStyle = "#777";
+            this.pCtx.stroke();
         };
 
         //check if i have shifted columns to know if i should redraw
@@ -994,7 +1007,7 @@ class Chart{
         } */
 
         this.currentColumnCursor = currentGraphColumn;
-        // this.iCtx.clearRect(0, 0, this.info.width, this.info.height);
+        this.pCtx.clearRect(0, 0, this.popup.width, this.popup.height);
         displayTooltip();
         drawVerticalLine();
         drawCircles();
@@ -1191,7 +1204,7 @@ class barChart{
     }
 
     // temporary dummies
-    drawTooltip(){
+    drawPopup(){
         
     }
     redraw() {
