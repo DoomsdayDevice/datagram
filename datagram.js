@@ -309,8 +309,8 @@ function createLayout(chart, title){
                 } else {
                     chart.justBeenSelected = chart.lines[i]["array"];
                 }
-                chart.drawGraphOnCheck();
-                chart.drawMinimap();
+                drawGraphOnCheck(chart);
+                drawMinimap(chart);
             }.bind(chart));
             chart.lines[i]["checkbox"] = input;
 
@@ -356,6 +356,38 @@ function createLayout(chart, title){
 
 
 }
+function initialConfiguration(chart){
+
+    //  chart.rowHeight = (chart.graph.height - DATESPACE) / NUMOFROWS;
+
+    // finds the maxmimum array value to scale the graph ceiling
+    calculateCutout(chart);
+    // configuring the initial ceiling so that the drawing func can check against it
+    // TODO optimize this
+
+    // old ceilings are needed to track changes in graph heights
+    // graphCeiling is needed to dynamically stop animations
+    chart.oldGraphCeiling = myMath.findPrettyMax(chart.lines, 0, chart.x.length);
+    chart.graphCeiling = myMath.findPrettyMax(chart.lines, 0, chart.x.length);
+    chart.oldMinimapCeiling = myMath.findPrettyMax(chart.lines, 0, chart.x.length);
+
+    // configuring parameters for drawing
+    chart.graphDrawingParameters =
+        new DrawingParameters(chart.gCtx, chart.x, null, null, 0, chart.graph.height - DATESPACE,
+                              0, chart.graph.width, null, null, null, chart.oldGraphCeiling, null,
+                              chart.numOfVisibleGraphColumns);
+    chart.minimapDrawingParameters = // TODO change to mini values
+    new DrawingParameters(chart.mCtx, chart.x, null, null, 0, chart.minimap.height,
+                          0, chart.minimap.width, 0, chart.x.length - 1, null, chart.oldMinimapCeiling,
+                          null, chart.x.length);
+
+    // TODO is it better that each function has own opacity or maybe create a wrapper instead of
+    // it being gloabal
+    // chart.opacity = 1;
+    drawHorizontalLineAboveText(chart);
+
+}
+
 function moveSlider(event, chart, movement){
     let movementX = event.movementX;
     event.preventDefault();
@@ -473,7 +505,7 @@ function moveSlider(event, chart, movement){
     }
 
     // apply all that shit
-    chart.drawGraphOnMovement();
+    drawGraphOnMovement(chart);
     // TODO recalculate the position of the
     configureSlider(chart);
 
@@ -483,37 +515,6 @@ function configureSlider(chart){
     chart.sliderWidth = parseInt(getComputedStyle(chart.slider).width);
 }
 
-function initialConfiguration(chart){
-
-    //  chart.rowHeight = (chart.graph.height - DATESPACE) / NUMOFROWS;
-
-    // finds the maxmimum array value to scale the graph ceiling
-    calculateCutout(chart);
-    // configuring the initial ceiling so that the drawing func can check against it
-    // TODO optimize this
-
-    // old ceilings are needed to track changes in graph heights
-    // graphCeiling is needed to dynamically stop animations
-    chart.oldGraphCeiling = myMath.findPrettyMax(chart.lines, 0, chart.x.length);
-    chart.graphCeiling = myMath.findPrettyMax(chart.lines, 0, chart.x.length);
-    chart.oldMinimapCeiling = myMath.findPrettyMax(chart.lines, 0, chart.x.length);
-
-    // configuring parameters for drawing
-    chart.graphDrawingParameters =
-        new DrawingParameters(chart.gCtx, chart.x, null, null, 0, chart.graph.height - DATESPACE,
-                              0, chart.graph.width, null, null, null, chart.oldGraphCeiling, null,
-                              chart.numOfVisibleGraphColumns);
-    chart.minimapDrawingParameters = // TODO change to mini values
-    new DrawingParameters(chart.mCtx, chart.x, null, null, 0, chart.minimap.height,
-                          0, chart.minimap.width, 0, chart.x.length - 1, null, chart.oldMinimapCeiling,
-                          null, chart.x.length);
-
-    // TODO is it better that each function has own opacity or maybe create a wrapper instead of
-    // it being gloabal
-    // chart.opacity = 1;
-    drawHorizontalLineAboveText(chart);
-
-}
 
 function calculateCutout (chart) {
     // TODO gotta calc the columns and the offset
@@ -564,7 +565,6 @@ function drawHorizontalLineAboveText(chart){ // above dates
 	  chart.iCtx.lineTo(chart.graph.width, chart.graph.height - DATESPACE + 2);
 	  chart.iCtx.stroke();
 }
-
 function drawDates(chart, {xStart, xEnd, xOffset, xEndPoint, xStartPoint}) {
     // fired on every redraw (for optimization - only fire when slider is moved)
     chart.iCtx.clearRect(0, chart.graph.height - DATESPACE, chart.graph.width, DATESPACE);
@@ -610,7 +610,6 @@ function drawDates(chart, {xStart, xEnd, xOffset, xEndPoint, xStartPoint}) {
 		//     dateSkipCounter -= 1;
 		// }
 }
-
 function drawNumbers(chart, ceiling) {
 	  // drawing the numbers on the left side
 	  let y = chart.graph.height - DATESPACE;
@@ -634,6 +633,36 @@ function drawNumbers(chart, ceiling) {
 	  //     chart.iCtx.font = `80px sans-serif`;
 	  //     chart.iCtx.fillText("N/A", chart.graph.width / 2 - 40, chart.graph.height / 2);
 	  // }
+
+}
+
+function drawMinimap(chart){
+    // TODO optimize ceiling calculations so i don't do them twice with drawGraph
+    console.log("here");
+    chart.mCtx.clearRect(0, 0, chart.minimap.width, chart.minimap.height);
+
+    let ceiling = myMath.findPrettyMax(chart.lines, 0, chart.x.length);
+    chart.minimapDrawingParameters.ceiling = ceiling;
+    chart.minimapDrawingParameters.xOffset = 0;
+
+    // checking if i need to do an animation
+    if (chart.oldMinimapCeiling != ceiling) {
+        chart.animation(chart.minimapDrawingParameters);
+        chart.oldMinimapCeiling = ceiling;
+    } else {
+        chart.drawWrapper(chart.minimapDrawingParameters);
+    }
+
+}
+function drawGraphOnCheck(chart){
+    configureGraphParams(chart);
+    chart.drawGraph();
+}
+function drawGraphOnMovement(chart){
+    calculateCutout(chart);
+    configureGraphParams(chart);
+    drawDates(chart, chart.graphDrawingParameters);
+    chart.drawGraph();
 
 }
 
@@ -666,17 +695,17 @@ class Chart{
         this.sliderOffset = null; //tracks diff between slider pos and closest column
         this.previousTouchPosition = null; // for tracking finger movement
 
-        this.convertData(data);
+        this.destructureData(data);
         createLayout(this, title);
         initialConfiguration(this);
 
-        this.drawGraphOnMovement();
-        this.drawMinimap();
+        drawGraphOnMovement(this);
+        drawMinimap(this);
         drawNumbers(this, this.graphDrawingParameters.ceiling);
         // this.drawHorizontalLine();
 
     }
-    convertData(data){
+    destructureData(data){
 
         // takes the passed data and converts into objects i can easily work with
         this.lines = [];
@@ -715,18 +744,6 @@ class Chart{
 
     // configuring the graph
 
-    drawGraphOnCheck(){
-        configureGraphParams(this);
-        this.drawGraph();
-    }
-
-    drawGraphOnMovement(){
-        calculateCutout(this);
-        configureGraphParams(this);
-        drawDates(this, this.graphDrawingParameters);
-        this.drawGraph();
-
-    }
     drawGraph(){
         this.gCtx.clearRect(0, 0, this.graph.width, this.graph.height);
         // calculateCutout(this);
@@ -802,23 +819,6 @@ class Chart{
         requestAnimationFrame(drawAnimation);
     }
 
-    drawMinimap(){
-        // TODO optimize ceiling calculations so i don't do them twice with drawGraph
-        this.mCtx.clearRect(0, 0, this.minimap.width, this.minimap.height);
-
-        let ceiling = myMath.findPrettyMax(this.lines, 0, this.x.length);
-        this.minimapDrawingParameters.ceiling = ceiling;
-        this.minimapDrawingParameters.xOffset = 0;
-
-        // checking if i need to do an animation
-        if (this.oldMinimapCeiling != ceiling) {
-            this.animation(this.minimapDrawingParameters);
-            this.oldMinimapCeiling = ceiling;
-        } else {
-            this.drawWrapper(this.minimapDrawingParameters);
-        }
-
-    }
 
     drawWrapper(parameters){
         //takes parameters from drawGraph or drawMinimap and paints all the active lines and stuff
@@ -1152,6 +1152,10 @@ class stackedBarChart{
 
 class barChart {
     constructor(data){
+        this.numOfVisibleGraphColumns = null; // used to calculate number of columns on the screen
+        this.sliderOffset = null; //tracks diff between slider pos and closest column
+        this.previousTouchPosition = null; // for tracking finger movement
+
         this.days = [];
         importDays(4, this.days);
         // dummies
@@ -1163,7 +1167,10 @@ class barChart {
         this.destructureData(data);
         initialConfiguration(this);
         // this.drawRectangle(data["colors"]["y0"]);
-        this.drawGraph();
+        drawGraphOnMovement(this);
+        drawMinimap(this);
+        drawNumbers(this, this.graphDrawingParameters.ceiling);
+        // this.drawGraph();
 
     }
     destructureData(data){
@@ -1174,14 +1181,35 @@ class barChart {
         this.color = data["colors"]["y0"];
     }
 
+    // drawGraphOnMovement(){
+    //     calculateCutout(this);
+    //     configureGraphParams(this);
+    //     drawDates(this, this.graphDrawingParameters);
+    //     this.drawGraph();
+    // }
     drawGraph(){
-        this.drawBars(this.y, 300, this.x.length, this.color);
+        // this.drawBars(this.y, 300, this.x.length, this.color);
+        this.gCtx.clearRect(0, 0, this.graph.width, this.graph.height);
+        this.drawWrapper(this.graphDrawingParameters);
     }
 
-    drawBars(array, xStart, xEnd, color){
-        // TODO parameters object for this
-        let ceiling = Math.max(...array.slice(xStart, xEnd)); // TODO reuse old code and find pretty nums
-        let areaHeight = this.graph.height - DATESPACE;
+    drawWrapper(parameters){
+        //TODO prolly a dummy func here for compatibility with other charts
+        // clean this up later
+
+        // i can probably move these to initial parameter config with a wrapper or something
+        this.graphDrawingParameters.yArray = this.y;
+        this.minimapDrawingParameters.yArray = this.y;
+        this.graphDrawingParameters.color = this.color;
+        this.minimapDrawingParameters.color = this.color;
+        this.drawBars(parameters);
+    }
+    drawBars({ctx, yArray, xStart, xEnd, color, yEndPoint, yStartPoint}){
+        console.log("elem", ctx);
+        console.log("arr", yArray);
+        let ceiling = Math.max(...yArray.slice(xStart, xEnd)); // TODO reuse old code and find pretty nums
+        // let areaHeight = //this.graph.height - DATESPACE;
+        let areaHeight = yEndPoint - yStartPoint;
         let areaWidth = this.graph.width;
 
         let numOfColumns = xEnd - xStart;
@@ -1189,16 +1217,17 @@ class barChart {
 
         let numsPerPixel = areaHeight / ceiling;
         let currentX = 0;
-        let currentY = areaHeight - array[0] * numsPerPixel;
+        let currentY = areaHeight - yArray[0] * numsPerPixel;
 
         let fillDistance = this.graph.height - DATESPACE - currentY; // on the Y axis
         let fillWidth = this.graph.width / numOfColumns - 1; // on the X axis
 
-        this.gCtx.fillStyle = color;
+        ctx.fillStyle = color;
         for (let x = xStart; x < xEnd; x++) {
-            this.gCtx.fillRect(currentX, currentY, fillWidth, fillDistance);
+            fillDistance = this.graph.height - DATESPACE - currentY; // on the Y axis
+            ctx.fillRect(currentX, currentY, fillWidth, fillDistance);
 
-            currentY = areaHeight - array[x] * numsPerPixel;
+            currentY = areaHeight - yArray[x] * numsPerPixel;
             currentX += columnWidth;
             // TODO insert spaces between columns
 
@@ -1302,10 +1331,8 @@ function importDays(chartNumber, whereToAppend){
 }
 
 // initiate each chart; also appends each to arrayOfNewCharts
-for (let c = 1; c < 6; c++) {
+for (let c = 1; c <= 5; c++) {
     initiateNewCharts(c);
 }
 
 
-function heya(){
-}
