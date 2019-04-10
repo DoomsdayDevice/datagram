@@ -638,7 +638,6 @@ function drawNumbers(chart, ceiling) {
 
 function drawMinimap(chart){
     // TODO optimize ceiling calculations so i don't do them twice with drawGraph
-    console.log("here");
     chart.mCtx.clearRect(0, 0, chart.minimap.width, chart.minimap.height);
 
     let ceiling = myMath.findPrettyMax(chart.lines, 0, chart.x.length);
@@ -666,6 +665,24 @@ function drawGraphOnMovement(chart){
 
 }
 
+function declareChartVars(chart){
+    chart.currentColumnCursor = null; // used to track which part of the info canv to redraw
+    chart.numOfVisibleGraphColumns = null; // used to calculate number of columns on the screen
+    chart.sliderOffset = null; //tracks diff between slider pos and closest column
+    chart.previousTouchPosition = null; // for tracking finger movement
+}
+function launchChart(chart, data, title){
+    chart.destructureData(data);
+    createLayout(chart, title);
+    initialConfiguration(chart);
+
+    drawGraphOnMovement(chart);
+    drawMinimap(chart);
+    drawNumbers(chart, chart.graphDrawingParameters.ceiling);
+    // chart.drawHorizontalLine();
+    
+}
+
 class DrawingParameters{
     constructor(ctx, xArray, yArray, color, yStartPoint, yEndPoint, xStartPoint, xEndPoint,
                 xStart, xEnd, ceiling, oldCeiling, xOffset, columnsOnCanvas){
@@ -690,19 +707,12 @@ class Chart{
     // takes data upon creation
     constructor(data, title){
         // global vars
-        this.currentColumnCursor = null; // used to track which part of the info canv to redraw
-        this.numOfVisibleGraphColumns = null; // used to calculate number of columns on the screen
-        this.sliderOffset = null; //tracks diff between slider pos and closest column
-        this.previousTouchPosition = null; // for tracking finger movement
-
-        this.destructureData(data);
-        createLayout(this, title);
-        initialConfiguration(this);
-
-        drawGraphOnMovement(this);
-        drawMinimap(this);
-        drawNumbers(this, this.graphDrawingParameters.ceiling);
-        // this.drawHorizontalLine();
+        declareChartVars(this);
+        // this.currentColumnCursor = null; // used to track which part of the info canv to redraw
+        // this.numOfVisibleGraphColumns = null; // used to calculate number of columns on the screen
+        // this.sliderOffset = null; //tracks diff between slider pos and closest column
+        // this.previousTouchPosition = null; // for tracking finger movement
+        launchChart(this, data, title);
 
     }
     destructureData(data){
@@ -1123,7 +1133,6 @@ function onResize(){
 
 }
 
-initiateCharts();
 window.addEventListener("resize", onResize);
 
 
@@ -1139,38 +1148,76 @@ class lineChart{
 }
 
 class line2XChart{
-    constructor(){
+    constructor(data){
+        declareChartVars(this);
+        // dummies TODO
+        this.lines = [];
+
+        let title = "LINE 2X";
+        launchChart(this, data, title);
+
+    }
+    destructureData(data){
+        console.log("data:", data);
+
+        this.x = data["columns"][0];
+        // this.y = data["columns"][1];
+        // this.x.splice(0, 1);
+        // this.y.splice(0, 1);
+        // this.color = data["colors"]["y0"];
+    }
+    drawWrapper(){
+        
+    }
+    drawGraph(){
+        
+    }
+    drawPopup(){
         
     }
 }
 
 class stackedBarChart{
-    constructor(){
+    constructor(data){
+        declareChartVars(this);
+        // dummies TODO
+        this.lines = [];
+
+        let title = "STACKED";
+        launchChart(this, data, title);
+
+    }
+    destructureData(data){
+        console.log("data:", data);
+
+        this.x = data["columns"][0];
+        // this.y = data["columns"][1];
+        // this.x.splice(0, 1);
+        // this.y.splice(0, 1);
+        // this.color = data["colors"]["y0"];
+    }
+    drawWrapper(){
+        
+    }
+    drawGraph(){
+        
+    }
+    drawPopup(){
         
     }
 }
 
 class barChart {
     constructor(data){
-        this.numOfVisibleGraphColumns = null; // used to calculate number of columns on the screen
-        this.sliderOffset = null; //tracks diff between slider pos and closest column
-        this.previousTouchPosition = null; // for tracking finger movement
+        declareChartVars(this);
 
+        // dummies TODO
+        this.lines = [];
         this.days = [];
         importDays(4, this.days);
-        // dummies
-        this.lines = [];
         
-        createLayout(this, data["names"]["y0"]);
-
-
-        this.destructureData(data);
-        initialConfiguration(this);
-        // this.drawRectangle(data["colors"]["y0"]);
-        drawGraphOnMovement(this);
-        drawMinimap(this);
-        drawNumbers(this, this.graphDrawingParameters.ceiling);
-        // this.drawGraph();
+        let title = data["names"]["y0"];
+        launchChart(this, data, title);
 
     }
     destructureData(data){
@@ -1205,8 +1252,6 @@ class barChart {
         this.drawBars(parameters);
     }
     drawBars({ctx, yArray, xStart, xEnd, color, yEndPoint, yStartPoint}){
-        console.log("elem", ctx);
-        console.log("arr", yArray);
         let ceiling = Math.max(...yArray.slice(xStart, xEnd)); // TODO reuse old code and find pretty nums
         // let areaHeight = //this.graph.height - DATESPACE;
         let areaHeight = yEndPoint - yStartPoint;
@@ -1239,16 +1284,39 @@ class barChart {
     drawPopup(){
         
     }
-    redraw() {
+    // redraw() {
         
-    }
+    // }
 }
 
 
 class areaChart{
     constructor(data){
+        declareChartVars(this);
+        // dummies TODO
+        this.lines = [];
 
+        let title = "AREA";
+        launchChart(this, data, title);
 
+    }
+    destructureData(data){
+        console.log("data:", data);
+
+        this.x = data["columns"][0];
+        // this.y = data["columns"][1];
+        // this.x.splice(0, 1);
+        // this.y.splice(0, 1);
+        // this.color = data["colors"]["y0"];
+    }
+    drawWrapper(){
+        
+    }
+    drawGraph(){
+        
+    }
+    drawPopup(){
+        
     }
 }
 
@@ -1329,6 +1397,8 @@ function importDays(chartNumber, whereToAppend){
         }
     }
 }
+// OLD CHARTS
+// initiateCharts();
 
 // initiate each chart; also appends each to arrayOfNewCharts
 for (let c = 1; c <= 5; c++) {
