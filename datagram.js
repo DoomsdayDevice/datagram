@@ -4,6 +4,7 @@ const NUMOFROWS = 6; // how many numbers should be displayed on the left
 const DATESPACE = 23; // the space left to display the dates
 const help = {
     round: function (number){
+        // PARENTS: Chart.drawLine() drawText()
         return Math.round(number * 10) / 10;
     },
     calcXPositionOnCanvas: function() {
@@ -25,6 +26,7 @@ const SETTINGS = {
     minmapHeight: 75,
     mainContainerWidth: innerWidth / 2,
     
+    minSliderWidth: 100
 };
 
 const myMath = {
@@ -191,10 +193,6 @@ function createLayout(chart, title){
         chart.miniDiv.appendChild(chart.slider);
         chart.miniDiv.appendChild(chart.rSpace);
 
-        // let clrDiv = document.createElement("div");
-        // chart.miniDiv.appendChild(clrDiv);
-        // clrDiv.style.clear = "both";
-
 
         let boundMoveSlider = moveSlider.bind(chart);
         chart.slider.addEventListener("mousedown", function(){
@@ -324,6 +322,15 @@ function createLayout(chart, title){
 
 
 }
+function moveLeftSlider(objectevent){
+    moveSlider
+}
+function moveRightSlider(event){
+    
+}
+function moveMiddleSlider(event){
+    
+}
 function moveSlider(event){
     let movementX = event.movementX;
     event.preventDefault();
@@ -393,7 +400,7 @@ function moveSlider(event){
             this.slider.style.width = parseInt(sliderStyle.width) + movementX + "px";
         }
 
-        if (parseInt(sliderStyle.width) < 150){
+        if (parseInt(sliderStyle.width) < SETTINGS.minSliderWidth){
 
             this.lSpace.style.width = parseInt(lSpaceStyle.width) - movementX + "px";
 
@@ -404,6 +411,7 @@ function moveSlider(event){
     };
 
     let moveRight = () => {
+        console.log("here");
         this.slider.style.width = parseInt(sliderStyle.width) + movementX + "px";
 
         this.rSpace.style.left = parseInt(rSpaceStyle.left) + movementX + "px";
@@ -422,7 +430,7 @@ function moveSlider(event){
 
         }
 
-        if (parseInt(sliderStyle.width) < 150){
+        if (parseInt(sliderStyle.width) < SETTINGS.minSliderWidth){
 
             this.slider.style.width = parseInt(sliderStyle.width) - movementX + "px";
 
@@ -597,26 +605,6 @@ class Chart{
         let numOfCutColumns = this.sliderColumnEnd - this.sliderColumnStart;
         xOffset = xOffset / numOfCutColumns * this.x.length;
 
-
-        // let newparameters = {
-        //     canvas: this.gCtx,
-        //     xArray: this.x,
-        //     array: null,
-        //     color: null,
-        //     yStartPoint: 0,
-        //     yEndPoint: this.graph.height - DATESPACE,
-        //     xStartPoint: 0,
-        //     xEndPoint: this.graph.width,
-        //     xStart: null,
-        //     xEnd: null,
-        //     ceiling: null,
-        //     xOffset: null,
-        //     numOfColumns: this.numOfVisibleGraphColumns,
-        //     oldCeiling: this.oldGraphCeiling
-        // };
-        // let parametersOld = [this.gCtx, this.x, "array", "color", DATESPACE, this.graph.height,
-        //                   0, this.graph.width, xStart, xEnd, ceiling,
-        //                   xOffset, this.numOfVisibleGraphColumns, this.oldGraphCeiling];
         // checking if i need the animation
         this.graphDrawingParameters.xStart = xStart;
         this.graphDrawingParameters.xEnd = xEnd;
@@ -639,7 +627,7 @@ class Chart{
 
         // let cutoutWidth = this.cutoutWidth / this.minimap.width * this.graph.width;
 
-        let columnWidth = areaWidth / columnsOnCanvas; //used to calculate the number of columns on the screen
+        let columnWidth = areaWidth / xLength; //used to calculate the number of columns on the screen
         let yFactor = areaHeight / ceiling;
 
         let currentX = xStartPoint;
@@ -649,7 +637,7 @@ class Chart{
         ctx.beginPath();
         // ctx.moveTo(currentX, currentY);
         for (let i = xStart; i < xEnd; i++) {
-            currentX = help.round((i - xStart) * columnWidth) - xOffset;
+            currentX = help.round((i - xStart) * columnWidth - xOffset);
             currentY = yEndPoint - help.round( yArray[i] * yFactor ) - yStartPoint;
 
             ctx.lineTo(currentX, currentY);
@@ -705,11 +693,6 @@ class Chart{
         // TODO optimize ceiling calculations so i don't do them twice with drawGraph
 
         let ceiling = myMath.findPrettyMax(this.lines, 0, this.x.length);
-        // let parameters = [this.mCtx, this.x, "array", "color", 0, this.minimap.height,
-        //                   0, this.minimap.width, 0, this.x.length - 1, ceiling,
-        //                   0, this.x.length, this.oldMinimapCeiling];
-        // this.minimapDrawingParameters.xStart = xStart;
-        // this.minimapDrawingParameters.xEnd = xEnd;
         this.minimapDrawingParameters.ceiling = ceiling;
         this.minimapDrawingParameters.xOffset = 0;
 
@@ -785,6 +768,7 @@ class Chart{
 
         for (let i = xStart; i < xEnd + 1; i++) {
             if (dateSkipCounter == 0) {
+                // TODO finish rounding floats
                 currentX = help.round((i - xStart) * columnWidth - xOffset);
                 let date = new Date(this.x[i]);
                 date = MONTHS[date.getMonth()] + ' ' + date.getDate();
