@@ -298,8 +298,8 @@ function createLayout(chart, title){
                 } else {
                     chart.justBeenSelected = chart.lines[i]["array"];
                 }
-                chart.redraw();
-                // chart.drawMinimap();
+                chart.drawGraphOnCheck();
+                chart.drawMinimap();
             }.bind(chart));
             chart.lines[i]["checkbox"] = input;
 
@@ -462,7 +462,7 @@ function moveSlider(event, chart, movement){
     }
 
     // apply all that shit
-    chart.redraw();
+    chart.drawGraphOnMovement();
     // TODO recalculate the position of the
     configureSlider(chart);
 
@@ -507,7 +507,7 @@ class Chart{
         createLayout(this, title);
         this.initialConfiguration();
 
-        this.drawGraph();
+        this.drawGraphOnMovement();
         this.drawMinimap();
         // this.drawNumbers();
         // this.drawHorizontalLine();
@@ -566,6 +566,7 @@ class Chart{
         // gotta convert that to the graph offset in drawGraph
         this.sliderOffset = lPoint - this.sliderColumnStart * mColumnWidth;
 
+
         // TODO round this float probably
 
 
@@ -604,9 +605,19 @@ class Chart{
 
     }
 
+    drawGraphOnCheck(){
+        this.configureGraphParams();
+        this.drawGraph();
+    }
 
-    drawGraph(){
+    drawGraphOnMovement(){
         this.calculateCutout();
+        this.configureGraphParams();
+        this.drawText(this.graphDrawingParameters);
+        this.drawGraph();
+
+    }
+    configureGraphParams(){
         let xStart = this.sliderColumnStart;
         let xEnd = this.sliderColumnEnd;
 
@@ -624,10 +635,15 @@ class Chart{
         this.graphDrawingParameters.xEnd = xEnd;
         this.graphDrawingParameters.ceiling = ceiling;
         this.graphDrawingParameters.xOffset = xOffset;
+        this.graphDrawingParameters.columnsOnCanvas = this.numOfVisibleGraphColumns;
 
-        if (this.oldGraphCeiling != ceiling) { // TODO consider code optimization with drawMinimap
+    }
+    drawGraph(){
+        this.gCtx.clearRect(0, 0, this.graph.width, this.graph.height);
+        // this.calculateCutout();
+        if (this.oldGraphCeiling != this.graphDrawingParameters.ceiling) { // TODO consider code optimization with drawMinimap
             this.animation(this.graphDrawingParameters);
-            this.oldGraphCeiling = ceiling;
+            this.oldGraphCeiling = this.graphDrawingParameters.ceiling;
         } else {
             this.drawWrapper(this.graphDrawingParameters);
         }
@@ -641,17 +657,20 @@ class Chart{
 
         // let cutoutWidth = this.cutoutWidth / this.minimap.width * this.graph.width;
 
-        let columnWidth = areaWidth / xLength; //used to calculate the number of columns on the screen
+        // width for canvas and the columns which are drawn off the canvas
+        // let visibleColumnWidth = areaWidth / columnsOnCanvas; 
+
+        let columnWidth = areaWidth  / columnsOnCanvas; //used to calculate the number of columns on the screen
         let yFactor = areaHeight / ceiling;
 
-        let currentX = xStartPoint;
+        let currentX = xStartPoint - xOffset;
         let currentY = help.round(yArray[xStart] * yFactor) - yStartPoint;
 
         
         ctx.beginPath();
         // ctx.moveTo(currentX, currentY);
-        for (let i = xStart; i < xEnd; i++) {
-            currentX = help.round((i - xStart) * columnWidth - xOffset);
+        for (let i = xStart; i < xEnd + 1; i++) {
+            currentX = help.round((i - xStart) * columnWidth) - xOffset;
             currentY = yEndPoint - help.round( yArray[i] * yFactor ) - yStartPoint;
 
             ctx.lineTo(currentX, currentY);
@@ -662,18 +681,8 @@ class Chart{
 
         ctx.stroke();
 
-        this.drawText(xStart, xEnd, xOffset, columnWidth);
     }
 
-
-    redraw() {
-        // TODO dummy function
-        this.mCtx.clearRect(0, 0, this.minimap.width, this.minimap.height);
-        this.gCtx.clearRect(0, 0, this.graph.width, this.graph.height);
-        this.drawGraph();
-        this.drawMinimap();
-
-    }
 
     animation(parameters){
         // draws lines with given parameters and each time adjusts the ceiling
@@ -697,6 +706,7 @@ class Chart{
                 parameters.ceiling = currentCeiling;
                 currentCeiling += distributedDifference;
                 this.drawWrapper(parameters);
+                this.drawNumbers(parameters);
                 counter += 1;
             }
         };
@@ -705,6 +715,7 @@ class Chart{
 
     drawMinimap(){
         // TODO optimize ceiling calculations so i don't do them twice with drawGraph
+        this.mCtx.clearRect(0, 0, this.minimap.width, this.minimap.height);
 
         let ceiling = myMath.findPrettyMax(this.lines, 0, this.x.length);
         this.minimapDrawingParameters.ceiling = ceiling;
@@ -721,7 +732,7 @@ class Chart{
     }
 
     drawWrapper(parameters){
-        //takes parameters from drawGraph or drawMinimap and paints
+        //takes parameters from drawGraph or drawMinimap and paints all the active lines and stuff
         for (let i=0; i < this.lines.length; i++){
             if (this.lines[i]["checkbox"].checked) {
 
@@ -729,7 +740,6 @@ class Chart{
                 parameters.yArray = this.lines[i]["array"];
                 this.drawLine(parameters);
             }
-            this.drawNumbers();
         }
     }
 
@@ -765,12 +775,13 @@ class Chart{
 
 	      }
     }
-    drawText(xStart, xEnd, xOffset, columnWidth) {
+    drawText({xStart, xEnd, xOffset, xEndPoint, xStartPoint}) {
         // fired on every redraw (for optimization - only fire when slider is moved)
+        this.iCtx.clearRect(0, this.graph.height - DATESPACE, this.graph.width, DATESPACE);
         // takes the range start, end
         // better to draw this with each line draw OR use the same formulas
         // TODO make new consts for repetitive formulas, like calc position with offset
-        
+        let columnWidth = (xEndPoint - xStartPoint) / (xEnd - xStart);
         
 	      let dateSkipCounter = 0;
 	      let skipFactor;
@@ -780,6 +791,8 @@ class Chart{
         let y =this.graph.height - 5;
         let currentX = 0; 
 
+	      this.iCtx.font = "14px Helvetica"; //font for the numbers
+	      this.iCtx.fillStyle = "grey";
         for (let i = xStart; i < xEnd + 1; i++) {
             if (dateSkipCounter == 0) {
                 // TODO finish rounding floats
@@ -814,34 +827,27 @@ class Chart{
 	      this.iCtx.lineTo(this.graph.width, this.graph.height - DATESPACE + 2);
 	      this.iCtx.stroke();
     }
-    drawNumbers() {
-        let drawNumbers = () =>{
-	          // drawing the numbers on the left side
-	          let y = this.graph.height - DATESPACE;
-	          let curNum = 0;
-            let rowStep = this.graphCeiling / NUMOFROWS;
-            let rowHeight = (this.graph.height - DATESPACE) / NUMOFROWS;
-            // TODO round floats
+    drawNumbers({ceiling}) {
+	      // drawing the numbers on the left side
+	      let y = this.graph.height - DATESPACE;
+        this.iCtx.clearRect(0, 0, 300, y);
+	      let curNum = 0;
+        let rowStep = ceiling / NUMOFROWS;
+        let rowHeight = (this.graph.height - DATESPACE) / NUMOFROWS;
+        // TODO round floats
 
-	          
-	          this.iCtx.fillStyle = "grey";
-	          this.iCtx.font = "14px Helvetica"; //font for the numbers
-	          for (let i=0; i < NUMOFROWS; i++){
-		            this.iCtx.fillText(curNum, 20, y - 10);
-		            
-		            curNum += rowStep;
-		            y -= rowHeight;
-	          }
-
-	      };
-	      if (this.isAnyArrayActive()){ //in case no array is selected
-	          drawNumbers();
-	          
-	      } else {
-	          this.iCtx.globalAlpha = 1 - this.opacity;
-	          this.iCtx.font = `80px sans-serif`;
-	          this.iCtx.fillText("N/A", this.graph.width / 2 - 40, this.graph.height / 2);
+	      for (let i=0; i < NUMOFROWS; i++){
+		        this.iCtx.fillText(curNum, 20, y - 10);
+		        curNum += rowStep;
+		        y -= rowHeight;
 	      }
+	      // if (this.isAnyArrayActive()){ //in case no array is selected
+	      //     drawNumbers();
+	      // } else {
+	      //     this.iCtx.globalAlpha = 1 - this.opacity;
+	      //     this.iCtx.font = `80px sans-serif`;
+	      //     this.iCtx.fillText("N/A", this.graph.width / 2 - 40, this.graph.height / 2);
+	      // }
 
     }
     drawTooltip({clientX}){
@@ -988,7 +994,7 @@ class Chart{
         } */
 
         this.currentColumnCursor = currentGraphColumn;
-        this.iCtx.clearRect(0, 0, this.info.width, this.info.height);
+        // this.iCtx.clearRect(0, 0, this.info.width, this.info.height);
         displayTooltip();
         drawVerticalLine();
         drawCircles();
@@ -1036,7 +1042,7 @@ function switchTheme(){
             // chart.tooltip(window.event); // redraw the tooltip
             themeButton.innerHTML = "Switch to Day Mode";
         }
-        chart.redraw();
+        // chart.redraw(); // why did i put it here
 
 
     }
@@ -1086,8 +1092,7 @@ function onResize(){
                 chart.rSpace.style.width = chart.minimap.width -
                     parseInt(chart.rSpace.style.left) + "px";
 
-                chart.drawMinimap();
-                chart.redraw("full");
+                // chart.drawMinimap();
                 // TODO resize the info canvas also
             };
             // adjust and redraw canvases
@@ -1184,12 +1189,12 @@ class barChart{
         }
 
     }
-    redraw() {
-        
-    }
 
     // temporary dummies
     drawTooltip(){
+        
+    }
+    redraw() {
         
     }
 }
