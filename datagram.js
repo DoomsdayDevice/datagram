@@ -19,6 +19,7 @@ const DAY = {
     lead: "rgb(255, 255, 255)"
 };
 
+
 const SETTINGS = {
     // TODO add the configuration params here
     minmapHeight: 75,
@@ -450,12 +451,34 @@ function configureSlider(chart){
     chart.sliderWidth = parseInt(getComputedStyle(chart.slider).width);
 }
 
+
+
+class DrawingParameters{
+    constructor(ctx, xArray, yArray, color, yStartPoint, yEndPoint, xStartPoint, xEndPoint,
+                xStart, xEnd, ceiling, oldCeiling, xOffset, columnsOnCanvas){
+        this.ctx = ctx;
+        this.xArray = xArray;
+        this.yArray = yArray;
+        this.color = color;
+        this.yStartPoint = yStartPoint;
+        this.yEndPoint = yEndPoint;
+        this.xStartPoint = xStartPoint;
+        this.xEndPoint = xEndPoint;
+        this.xStart = xStart;
+        this.xEnd = xEnd;
+        this.ceiling = ceiling;
+        this.oldCeiling = oldCeiling;
+        this.xOffset = xOffset;
+        this.columnsOnCanvas = columnsOnCanvas;
+        
+    }
+}
 class Chart{
     // takes data upon creation
     constructor(data, title){
         // global vars
         this.currentColumnCursor = undefined; // used to track which part of the info canv to redraw
-        this.cutoutScreenColumnSize = undefined; // used to calculate number of columns on the screen
+        this.numOfVisibleGraphColumns = undefined; // used to calculate number of columns on the screen
         this.sliderOffset = undefined; //tracks diff between slider pos and closest column
 
         this.convertData(data);
@@ -512,7 +535,7 @@ class Chart{
         let lPoint = parseInt(getComputedStyle(this.slider).left);
         let rPoint = lPoint + parseInt(getComputedStyle(this.slider).width);
         let mColumnWidth = this.minimap.width / this.x.length;
-        this.cutoutScreenColumnSize = (rPoint - lPoint) / mColumnWidth;
+        this.numOfVisibleGraphColumns = (rPoint - lPoint) / mColumnWidth;
         
         this.sliderColumnStart = Math.floor(lPoint / mColumnWidth);
         this.sliderColumnEnd = Math.ceil(rPoint / mColumnWidth);
@@ -536,9 +559,19 @@ class Chart{
 
         // old ceilings are needed to track changes in graph heights
         // graphCeiling is needed to dynamically stop animations
-        this.oldCeiling = myMath.findPrettyMax(this.lines, 0, this.x.length);
+        this.oldGraphCeiling = myMath.findPrettyMax(this.lines, 0, this.x.length);
         this.graphCeiling = myMath.findPrettyMax(this.lines, 0, this.x.length);
         this.oldMinimapCeiling = myMath.findPrettyMax(this.lines, 0, this.x.length);
+
+        // configuring parameters for drawing
+        this.graphDrawingParameters =
+            new DrawingParameters(this.gCtx, this.x, null, null, 0, this.graph.height - DATESPACE,
+                                  0, this.graph.width, null, null, null, this.oldGraphCeiling, null,
+                                  this.numOfVisibleGraphColumns);
+        this.minimapDrawingParameters = // TODO change to mini values
+            new DrawingParameters(this.mCtx, this.x, null, null, 0, this.minimap.height,
+                                  0, this.minimap.width, 0, this.x.length - 1, null, this.oldMinimapCeiling,
+                                  null, this.x.length);
 
         // TODO is it better that each function has own opacity or maybe create a wrapper instead of
         // it being gloabal
@@ -565,29 +598,48 @@ class Chart{
         xOffset = xOffset / numOfCutColumns * this.x.length;
 
 
-        let parameters = [this.gCtx, this.x, "array", "color", DATESPACE, this.graph.height,
-                          0, this.graph.width, xStart, xEnd, ceiling,
-                          xOffset, this.cutoutScreenColumnSize, this.oldCeiling];
+        // let newparameters = {
+        //     canvas: this.gCtx,
+        //     xArray: this.x,
+        //     array: null,
+        //     color: null,
+        //     yStartPoint: 0,
+        //     yEndPoint: this.graph.height - DATESPACE,
+        //     xStartPoint: 0,
+        //     xEndPoint: this.graph.width,
+        //     xStart: null,
+        //     xEnd: null,
+        //     ceiling: null,
+        //     xOffset: null,
+        //     numOfColumns: this.numOfVisibleGraphColumns,
+        //     oldCeiling: this.oldGraphCeiling
+        // };
+        // let parametersOld = [this.gCtx, this.x, "array", "color", DATESPACE, this.graph.height,
+        //                   0, this.graph.width, xStart, xEnd, ceiling,
+        //                   xOffset, this.numOfVisibleGraphColumns, this.oldGraphCeiling];
         // checking if i need the animation
-        if (this.oldCeiling != ceiling) { // TODO consider code optimization with drawMinimap
-            this.animation(parameters);
-            this.oldCeiling = ceiling;
+        this.graphDrawingParameters.xStart = xStart;
+        this.graphDrawingParameters.xEnd = xEnd;
+        this.graphDrawingParameters.ceiling = ceiling;
+        this.graphDrawingParameters.xOffset = xOffset;
+
+        if (this.oldGraphCeiling != ceiling) { // TODO consider code optimization with drawMinimap
+            this.animation(this.graphDrawingParameters);
+            this.oldGraphCeiling = ceiling;
         } else {
-            this.drawWrapper(parameters);
+            this.drawWrapper(this.graphDrawingParameters);
         }
     }
 
-    drawLine(ctx, xArray, yArray, color, yStartPoint, yEndPoint,
-             xStartPoint, xEndPoint, xStart, xEnd, ceiling, xOffset,
-             columnFactor) {
+    drawLine({ctx, xArray, yArray, color, yStartPoint, yEndPoint, xStartPoint, xEndPoint,
+              xStart, xEnd, ceiling, oldCeiling, xOffset, columnsOnCanvas}) {
         let xLength = xEnd - xStart;
         let areaHeight = yEndPoint - yStartPoint;
         let areaWidth = xEndPoint - xStartPoint;
 
         // let cutoutWidth = this.cutoutWidth / this.minimap.width * this.graph.width;
 
-        // xFactor is essentially column width
-        let xFactor = areaWidth / columnFactor; //used to calculate the number of columns on the screen
+        let columnWidth = areaWidth / columnsOnCanvas; //used to calculate the number of columns on the screen
         let yFactor = areaHeight / ceiling;
 
         let currentX = xStartPoint;
@@ -597,7 +649,7 @@ class Chart{
         ctx.beginPath();
         // ctx.moveTo(currentX, currentY);
         for (let i = xStart; i < xEnd; i++) {
-            currentX = help.round((i - xStart) * xFactor) - xOffset;
+            currentX = help.round((i - xStart) * columnWidth) - xOffset;
             currentY = yEndPoint - help.round( yArray[i] * yFactor ) - yStartPoint;
 
             ctx.lineTo(currentX, currentY);
@@ -608,7 +660,7 @@ class Chart{
 
         ctx.stroke();
 
-        this.drawText(xStart, xEnd, xOffset, xFactor);
+        this.drawText(xStart, xEnd, xOffset, columnWidth);
     }
 
 
@@ -624,22 +676,23 @@ class Chart{
     animation(parameters){
         // draws lines with given parameters and each time adjusts the ceiling
         // old ceiling
-        let ceiling = parameters[10];
-        let oldCeiling = parameters[parameters.length - 1];
+        // RM extra code
+        let ceiling = parameters.ceiling;
+        let oldCeiling = parameters.oldCeiling;
 
-        let numOfFrames = 30; //TODO temp
-        let ceilRelationship = (1 / ceiling) * this.oldCeiling;
-        let difference = ceiling - this.oldCeiling;
+        let numOfFrames = 30; //TODO TEMP
+        let ceilRelationship = (1 / ceiling) * this.oldGraphCeiling;
+        let difference = ceiling - this.oldGraphCeiling;
         let distributedDifference = difference / numOfFrames;
         
-        let currentCeiling = this.oldCeiling + distributedDifference;
+        let currentCeiling = this.oldGraphCeiling + distributedDifference;
 
         let counter = 0;
         let drawAnimation = () => {
             if (counter < numOfFrames) {
                 requestAnimationFrame(drawAnimation);
-                parameters[0].clearRect(0, 0, parameters[7], parameters[5]);
-                parameters[10] = currentCeiling;
+                parameters.ctx.clearRect(0, 0, parameters.xEndPoint, parameters.yEndPoint);
+                parameters.ceiling = currentCeiling;
                 currentCeiling += distributedDifference;
                 this.drawWrapper(parameters);
                 counter += 1;
@@ -652,16 +705,20 @@ class Chart{
         // TODO optimize ceiling calculations so i don't do them twice with drawGraph
 
         let ceiling = myMath.findPrettyMax(this.lines, 0, this.x.length);
-        let parameters = [this.mCtx, this.x, "array", "color", 0, this.minimap.height,
-                          0, this.minimap.width, 0, this.x.length - 1, ceiling,
-                          0, this.x.length, this.oldMinimapCeiling];
+        // let parameters = [this.mCtx, this.x, "array", "color", 0, this.minimap.height,
+        //                   0, this.minimap.width, 0, this.x.length - 1, ceiling,
+        //                   0, this.x.length, this.oldMinimapCeiling];
+        // this.minimapDrawingParameters.xStart = xStart;
+        // this.minimapDrawingParameters.xEnd = xEnd;
+        this.minimapDrawingParameters.ceiling = ceiling;
+        this.minimapDrawingParameters.xOffset = 0;
 
         // checking if i need to do an animation
         if (this.oldMinimapCeiling != ceiling) {
-            this.animation(parameters);
+            this.animation(this.minimapDrawingParameters);
             this.oldMinimapCeiling = ceiling;
         } else {
-            this.drawWrapper(parameters);
+            this.drawWrapper(this.minimapDrawingParameters);
         }
 
     }
@@ -671,9 +728,9 @@ class Chart{
         for (let i=0; i < this.lines.length; i++){
             if (this.lines[i]["checkbox"].checked) {
 
-                parameters[3] = this.lines[i]["color"];
-                parameters[2] = this.lines[i]["array"];
-                this.drawLine(...parameters);
+                parameters.color = this.lines[i]["color"];
+                parameters.yArray = this.lines[i]["array"];
+                this.drawLine(parameters);
             }
             this.drawNumbers();
         }
@@ -711,7 +768,7 @@ class Chart{
 
 	      }
     }
-    drawText(xStart, xEnd, xOffset, xFactor) {
+    drawText(xStart, xEnd, xOffset, columnWidth) {
         // fired on every redraw (for optimization - only fire when slider is moved)
         // takes the range start, end
         // better to draw this with each line draw OR use the same formulas
@@ -720,7 +777,7 @@ class Chart{
         
 	      let dateSkipCounter = 0;
 	      let skipFactor;
-	      skipFactor = Math.floor(80 / xFactor);
+	      skipFactor = Math.floor(80 / columnWidth);
 
 
         let y =this.graph.height - 5;
@@ -728,7 +785,7 @@ class Chart{
 
         for (let i = xStart; i < xEnd + 1; i++) {
             if (dateSkipCounter == 0) {
-                currentX = help.round((i - xStart) * xFactor - xOffset);
+                currentX = help.round((i - xStart) * columnWidth - xOffset);
                 let date = new Date(this.x[i]);
                 date = MONTHS[date.getMonth()] + ' ' + date.getDate();
                 this.iCtx.fillText(date, currentX, y);
@@ -792,13 +849,13 @@ class Chart{
     drawTooltip({clientX}){
         // gets the current mouse position and prints the appropriate array values
         let cutoutSize = this.sliderColumnEnd - this.sliderColumnStart;
-        let columnWidth = this.graph.width / this.cutoutScreenColumnSize;
+        let columnWidth = this.graph.width / this.numOfVisibleGraphColumns;
         let currentGraphColumn = Math.round((clientX - this.graph.getBoundingClientRect().left)  / columnWidth);
 
 
         let currentArrayColumn = this.sliderColumnStart + currentGraphColumn;
 
-        let conversionQuotient = (this.graph.height - DATESPACE) / this.oldCeiling;
+        let conversionQuotient = (this.graph.height - DATESPACE) / this.oldGraphCeiling;
         let convertedVal;
         let date;
 
@@ -1036,7 +1093,6 @@ function onResize(){
                 // TODO resize the info canvas also
             };
             // adjust and redraw canvases
-            chart.graph.widh
             // adjust slider
             // chart.graph.style.width = innerWidth / 2 + "px";//- parseInt(getComputedStyle(chart.div).marginRight);
         }
@@ -1049,7 +1105,7 @@ function onResize(){
 
 }
 
-// initiateCharts();
+initiateCharts();
 window.addEventListener("resize", onResize);
 
 
@@ -1092,7 +1148,6 @@ class barChart{
 
     }
     destructureData(data){
-        console.log("the data", data);
         this.x = data["columns"][0];
         this.y = data["columns"][1];
         this.x.splice(0, 1);
@@ -1105,13 +1160,14 @@ class barChart{
     }
 
     drawBars(array, xStart, xEnd, color){
+        // TODO parameters object for this
         let ceiling = Math.max(...array.slice(xStart, xEnd)); // TODO reuse old code and find pretty nums
         let areaHeight = this.graph.height - DATESPACE;
         let areaWidth = this.graph.width;
 
         let numOfColumns = xEnd - xStart;
         let columnWidth = this.graph.width / numOfColumns;
-        console.log(numOfColumns, xEnd, xStart);
+        // console.log(numOfColumns, xEnd, xStart);
 
         let yFactor = areaHeight / ceiling;
         let currentX = 0;
@@ -1123,8 +1179,8 @@ class barChart{
         this.gCtx.fillStyle = color;
         for (let x = xStart; x < xEnd; x++) {
             this.gCtx.fillRect(currentX, currentY, fillWidth, fillDistance);
-            console.log("curX", currentX);
-            console.log("olWid", columnWidth);
+            // console.log("curX", currentX);
+            // console.log("olWid", columnWidth);
 
             currentY = areaHeight - array[x] * yFactor;
             currentX += columnWidth;
