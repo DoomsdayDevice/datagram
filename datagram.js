@@ -193,51 +193,74 @@ function createLayout(chart, title){
         chart.miniDiv.appendChild(chart.slider);
         chart.miniDiv.appendChild(chart.rSpace);
 
+        let moveSliderLeft = (event) => {
+            moveSlider(event, chart, "left");
+        };
+        let moveSliderRight = (event) => {
+            moveSlider(event, chart, "right");
+        };
+        let moveSliderMiddle = (event) => {
+            moveSlider(event, chart, "mid");
+        };
 
-        let boundMoveSlider = moveSlider.bind(chart);
-        chart.slider.addEventListener("mousedown", function(){
-            let sliderRect = chart.slider.getBoundingClientRect();
+        let mouseMovement = () => {
+            
+            let addMovementListener = (moveFunction) => {
+                window.addEventListener("mousemove", moveFunction);
 
-            if (window.event.clientX < sliderRect.left + 20){
-                chart.movement = "left";
-            } else if (window.event.clientX > sliderRect.left +
-                       parseInt(getComputedStyle(chart.slider).width) - 20){
-                chart.movement = "right";
-            } else {
-                chart.movement = "mid";
+                window.addEventListener("mouseup", function (){
+                    window.removeEventListener("mousemove", moveFunction);
+                });
+            };
+
+            // let boundMoveSlider = moveSlider.bind(chart);
+            chart.slider.addEventListener("mousedown", function(){
+                let sliderRect = chart.slider.getBoundingClientRect();
+
+                if (window.event.clientX < sliderRect.left + 20){
+                    addMovementListener(moveSliderLeft);
+
+                } else if (window.event.clientX > sliderRect.left +
+                           parseInt(getComputedStyle(chart.slider).width) - 20){
+                    addMovementListener(moveSliderRight);
+                } else {
+                    addMovementListener(moveSliderMiddle);
+                }
+
             }
+                                         );
+        };
 
-            window.addEventListener("mousemove", boundMoveSlider);
-        }.bind(chart)
-                                    );
-        window.addEventListener("mouseup", function (){
-            window.removeEventListener("mousemove", boundMoveSlider);
-        }.bind(chart)
-                               );
 
         // mobile touch support
         let mobileTouch = () => {
+
+            let addMovementListener = (moveFunction) => {
+                window.addEventListener("touchmove", moveFunction);
+
+                window.addEventListener("touchend", function (){
+                    window.removeEventListener("touchmove", moveFunction);
+                });
+            };
+
             chart.slider.addEventListener("touchstart", function(){
-                chart.previousPosition = window.event.touches[0].clientX;
+                chart.previousTouchPosition = window.event.touches[0].clientX;
                 let sliderRect = chart.slider.getBoundingClientRect();
 
-                if (window.event.touches[0].clientX < sliderRect.left + 40){
-                    chart.movement = "left";
+                if (window.event.touches[0].clientX < sliderRect.left + 20){
+                    addMovementListener(moveSliderLeft);
+
                 } else if (window.event.touches[0].clientX > sliderRect.left +
-                           parseInt(getComputedStyle(chart.slider).width) - 40){
-                    chart.movement = "right";
+                           parseInt(getComputedStyle(chart.slider).width) - 20){
+                    addMovementListener(moveSliderRight);
                 } else {
-                    chart.movement = "mid";
+                    addMovementListener(moveSliderMiddle);
                 }
 
-                window.addEventListener("touchmove", boundMoveSlider);
-            }.bind(chart)
-                                        );
-            window.addEventListener("touchend", function (){
-                window.removeEventListener("touchmove", boundMoveSlider);
-            }.bind(chart)
-                                   );
+            }
+                                         );
         };
+        mouseMovement();
         mobileTouch();
 
         let cursorListener = () => {
@@ -322,62 +345,53 @@ function createLayout(chart, title){
 
 
 }
-function moveLeftSlider(objectevent){
-    moveSlider
-}
-function moveRightSlider(event){
-    
-}
-function moveMiddleSlider(event){
-    
-}
-function moveSlider(event){
+function moveSlider(event, chart, movement){
     let movementX = event.movementX;
     event.preventDefault();
 
     if (event.type === "touchmove"){ // check if on mobile
-        movementX = Math.round(event.touches[0].clientX - this.previousPosition);
-        this.previousPosition = event.touches[0].clientX;
+        movementX = Math.round(event.touches[0].clientX - chart.previousTouchPosition);
+        chart.previousTouchPosition = event.touches[0].clientX;
     }
 
-    let sliderStyle = getComputedStyle(this.slider);
-    let lSpaceStyle = getComputedStyle(this.lSpace);
-    let rSpaceStyle = getComputedStyle(this.rSpace);
+    let sliderStyle = getComputedStyle(chart.slider);
+    let lSpaceStyle = getComputedStyle(chart.lSpace);
+    let rSpaceStyle = getComputedStyle(chart.rSpace);
     let border = parseInt(sliderStyle.borderRightWidth) * 2;
 
 
     let moveMiddle = () => {
 
-        this.lSpace.style.width = parseInt(lSpaceStyle.width) + movementX + "px";
+        chart.lSpace.style.width = parseInt(lSpaceStyle.width) + movementX + "px";
 
-        this.rSpace.style.left = parseInt(rSpaceStyle.left) + movementX + "px";
-        this.rSpace.style.width = parseInt(rSpaceStyle.width) - movementX + "px";
+        chart.rSpace.style.left = parseInt(rSpaceStyle.left) + movementX + "px";
+        chart.rSpace.style.width = parseInt(rSpaceStyle.width) - movementX + "px";
 
-        this.slider.style.left = parseInt(sliderStyle.left) + movementX + "px";
+        chart.slider.style.left = parseInt(sliderStyle.left) + movementX + "px";
 
 
         if (parseInt(sliderStyle.left) < 0){
 
-            this.lSpace.style.width = parseInt(sliderStyle.left) - border / 2 + "px";
+            chart.lSpace.style.width = parseInt(sliderStyle.left) - border / 2 + "px";
 
-            this.slider.style.left = parseInt(sliderStyle.left) - movementX + "px";
-            this.rSpace.style.left = parseInt(rSpaceStyle.left) - movementX + "px";
-            this.rSpace.style.width = parseInt(rSpaceStyle.width) + movementX + "px";
+            chart.slider.style.left = parseInt(sliderStyle.left) - movementX + "px";
+            chart.rSpace.style.left = parseInt(rSpaceStyle.left) - movementX + "px";
+            chart.rSpace.style.width = parseInt(rSpaceStyle.width) + movementX + "px";
 
 
         }
         if ((parseInt(sliderStyle.left) + parseInt(sliderStyle.width)) >
-            this.minimap.width - border){
+            chart.minimap.width - border){
 
-            this.slider.style.left = parseInt(sliderStyle.left) - movementX + "px";
+            chart.slider.style.left = parseInt(sliderStyle.left) - movementX + "px";
 
-            this.lSpace.style.width = parseInt(lSpaceStyle.width) - movementX + "px";
+            chart.lSpace.style.width = parseInt(lSpaceStyle.width) - movementX + "px";
 
 
-            this.rSpace.style.left = parseInt(sliderStyle.left) +
+            chart.rSpace.style.left = parseInt(sliderStyle.left) +
                 parseInt(sliderStyle.width) + border  + "px";
-            this.rSpace.style.width = this.minimap.width -
-                parseInt(this.rSpace.style.left) + "px";
+            chart.rSpace.style.width = chart.minimap.width -
+                parseInt(chart.rSpace.style.left) + "px";
 
 
         }
@@ -386,72 +400,71 @@ function moveSlider(event){
 
     let moveLeft = () => {
 
-        this.lSpace.style.width = parseInt(lSpaceStyle.width) + movementX + "px";
+        chart.lSpace.style.width = parseInt(lSpaceStyle.width) + movementX + "px";
 
-        this.slider.style.left = parseInt(sliderStyle.left) + movementX + "px";
-        this.slider.style.width = parseInt(sliderStyle.width) - movementX + "px";
+        chart.slider.style.left = parseInt(sliderStyle.left) + movementX + "px";
+        chart.slider.style.width = parseInt(sliderStyle.width) - movementX + "px";
 
 
         if (parseInt(sliderStyle.left) < 0){ // side of screen
 
-            this.lSpace.style.width = parseInt(sliderStyle.left) - border / 2 + "px";
+            chart.lSpace.style.width = parseInt(sliderStyle.left) - border / 2 + "px";
 
-            this.slider.style.left = parseInt(sliderStyle.left) - movementX + "px";
-            this.slider.style.width = parseInt(sliderStyle.width) + movementX + "px";
+            chart.slider.style.left = parseInt(sliderStyle.left) - movementX + "px";
+            chart.slider.style.width = parseInt(sliderStyle.width) + movementX + "px";
         }
 
         if (parseInt(sliderStyle.width) < SETTINGS.minSliderWidth){
 
-            this.lSpace.style.width = parseInt(lSpaceStyle.width) - movementX + "px";
+            chart.lSpace.style.width = parseInt(lSpaceStyle.width) - movementX + "px";
 
-            this.slider.style.left = parseInt(sliderStyle.left) - movementX + "px";
-            this.slider.style.width = parseInt(sliderStyle.width) + movementX + "px";
+            chart.slider.style.left = parseInt(sliderStyle.left) - movementX + "px";
+            chart.slider.style.width = parseInt(sliderStyle.width) + movementX + "px";
         }
 
     };
 
     let moveRight = () => {
-        console.log("here");
-        this.slider.style.width = parseInt(sliderStyle.width) + movementX + "px";
+        chart.slider.style.width = parseInt(sliderStyle.width) + movementX + "px";
 
-        this.rSpace.style.left = parseInt(rSpaceStyle.left) + movementX + "px";
-        this.rSpace.style.width = parseInt(rSpaceStyle.width) - movementX + "px";
+        chart.rSpace.style.left = parseInt(rSpaceStyle.left) + movementX + "px";
+        chart.rSpace.style.width = parseInt(rSpaceStyle.width) - movementX + "px";
 
 
         if ((parseInt(sliderStyle.left) + parseInt(sliderStyle.width)) >
-            this.minimap.width - border){
+            chart.minimap.width - border){
 
-            this.slider.style.width = parseInt(sliderStyle.width) - movementX + "px";
+            chart.slider.style.width = parseInt(sliderStyle.width) - movementX + "px";
 
-            this.rSpace.style.left = parseInt(sliderStyle.left) +
+            chart.rSpace.style.left = parseInt(sliderStyle.left) +
                 parseInt(sliderStyle.width) + border + "px";
-            this.rSpace.style.width = this.minimap.width -
-                parseInt(this.rSpace.style.left) + "px";
+            chart.rSpace.style.width = chart.minimap.width -
+                parseInt(chart.rSpace.style.left) + "px";
 
         }
 
         if (parseInt(sliderStyle.width) < SETTINGS.minSliderWidth){
 
-            this.slider.style.width = parseInt(sliderStyle.width) - movementX + "px";
+            chart.slider.style.width = parseInt(sliderStyle.width) - movementX + "px";
 
-            this.rSpace.style.left = parseInt(rSpaceStyle.left) - movementX +  "px";
-            this.rSpace.style.width = parseInt(rSpaceStyle.width) + movementX +  "px";
+            chart.rSpace.style.left = parseInt(rSpaceStyle.left) - movementX +  "px";
+            chart.rSpace.style.width = parseInt(rSpaceStyle.width) + movementX +  "px";
         }
     };
 
     // checking mouse position on the button
-    if (this.movement == "left"){
+    if (movement == "left"){
         moveLeft();
-    } else if (this.movement == "right"){
+    } else if (movement == "right"){
         moveRight();
     } else {
         moveMiddle();
     }
 
     // apply all that shit
-    this.redraw();
+    chart.redraw();
     // TODO recalculate the position of the
-    configureSlider(this);
+    configureSlider(chart);
 
 }
 function configureSlider(chart){
@@ -485,9 +498,10 @@ class Chart{
     // takes data upon creation
     constructor(data, title){
         // global vars
-        this.currentColumnCursor = undefined; // used to track which part of the info canv to redraw
-        this.numOfVisibleGraphColumns = undefined; // used to calculate number of columns on the screen
-        this.sliderOffset = undefined; //tracks diff between slider pos and closest column
+        this.currentColumnCursor = null; // used to track which part of the info canv to redraw
+        this.numOfVisibleGraphColumns = null; // used to calculate number of columns on the screen
+        this.sliderOffset = null; //tracks diff between slider pos and closest column
+        this.previousTouchPosition = null; // for tracking finger movement
 
         this.convertData(data);
         createLayout(this, title);
@@ -1151,7 +1165,6 @@ class barChart{
 
         let numOfColumns = xEnd - xStart;
         let columnWidth = this.graph.width / numOfColumns;
-        // console.log(numOfColumns, xEnd, xStart);
 
         let yFactor = areaHeight / ceiling;
         let currentX = 0;
@@ -1163,8 +1176,6 @@ class barChart{
         this.gCtx.fillStyle = color;
         for (let x = xStart; x < xEnd; x++) {
             this.gCtx.fillRect(currentX, currentY, fillWidth, fillDistance);
-            // console.log("curX", currentX);
-            // console.log("olWid", columnWidth);
 
             currentY = areaHeight - array[x] * yFactor;
             currentX += columnWidth;
@@ -1174,7 +1185,6 @@ class barChart{
 
     }
     redraw() {
-        console.log("redrawomg");
         
     }
 
@@ -1259,9 +1269,7 @@ function importDays(chartNumber, whereToAppend){
                 let day = d;
                 if (day < 10) {day = '0' + day;}
                 let filename = `data/${chartNumber}/${folder}/${day}.json`;
-                // console.log(filename);
                 // TODO print the imported objects
-                // console.log(downloadDays(filename, whereToAppend));
                 downloadDays(filename, whereToAppend);
 
                 // TODO append to the corresponding object and then print all this shit
@@ -1279,5 +1287,4 @@ for (let c = 1; c < 6; c++) {
 
 
 function heya(){
-    console.log(arrayOfNewCharts[3].days);
 }
