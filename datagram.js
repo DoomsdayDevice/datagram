@@ -483,7 +483,159 @@ function configureSlider(chart){
     chart.sliderWidth = parseInt(getComputedStyle(chart.slider).width);
 }
 
+function initialConfiguration(chart){
 
+    //  chart.rowHeight = (chart.graph.height - DATESPACE) / NUMOFROWS;
+
+    // finds the maxmimum array value to scale the graph ceiling
+    calculateCutout(chart);
+    // configuring the initial ceiling so that the drawing func can check against it
+    // TODO optimize this
+
+    // old ceilings are needed to track changes in graph heights
+    // graphCeiling is needed to dynamically stop animations
+    chart.oldGraphCeiling = myMath.findPrettyMax(chart.lines, 0, chart.x.length);
+    chart.graphCeiling = myMath.findPrettyMax(chart.lines, 0, chart.x.length);
+    chart.oldMinimapCeiling = myMath.findPrettyMax(chart.lines, 0, chart.x.length);
+
+    // configuring parameters for drawing
+    chart.graphDrawingParameters =
+        new DrawingParameters(chart.gCtx, chart.x, null, null, 0, chart.graph.height - DATESPACE,
+                              0, chart.graph.width, null, null, null, chart.oldGraphCeiling, null,
+                              chart.numOfVisibleGraphColumns);
+    chart.minimapDrawingParameters = // TODO change to mini values
+    new DrawingParameters(chart.mCtx, chart.x, null, null, 0, chart.minimap.height,
+                          0, chart.minimap.width, 0, chart.x.length - 1, null, chart.oldMinimapCeiling,
+                          null, chart.x.length);
+
+    // TODO is it better that each function has own opacity or maybe create a wrapper instead of
+    // it being gloabal
+    // chart.opacity = 1;
+    drawHorizontalLineAboveText(chart);
+
+}
+
+function calculateCutout (chart) {
+    // TODO gotta calc the columns and the offset
+    // the offset is later used by drawgraph to calculate Translate
+    let lPoint = parseInt(getComputedStyle(chart.slider).left);
+    let rPoint = lPoint + parseInt(getComputedStyle(chart.slider).width);
+    let mColumnWidth = chart.minimap.width / chart.x.length;
+    chart.numOfVisibleGraphColumns = (rPoint - lPoint) / mColumnWidth;
+    
+    chart.sliderColumnStart = Math.floor(lPoint / mColumnWidth);
+    chart.sliderColumnEnd = Math.ceil(rPoint / mColumnWidth);
+
+    // offset: difference between the position of slider coords and closest column coords
+    // gotta convert that to the graph offset in drawGraph
+    chart.sliderOffset = lPoint - chart.sliderColumnStart * mColumnWidth;
+
+
+    // TODO round this float probably
+
+
+}
+function configureGraphParams(chart){
+    let xStart = chart.sliderColumnStart;
+    let xEnd = chart.sliderColumnEnd;
+
+    let ceiling = myMath.findPrettyMax(chart.lines, xStart, xEnd);
+
+    // the offset of graph should be much bigger
+    // accounting for the fact that graph is partial and minimap if full
+    // divide by number of cutout columns and multiply by total number
+    let xOffset = chart.sliderOffset / chart.minimap.width * chart.graph.width;
+    let numOfCutColumns = chart.sliderColumnEnd - chart.sliderColumnStart;
+    xOffset = xOffset / numOfCutColumns * chart.x.length;
+
+    // checking if i need the animation
+    chart.graphDrawingParameters.xStart = xStart;
+    chart.graphDrawingParameters.xEnd = xEnd;
+    chart.graphDrawingParameters.ceiling = ceiling;
+    chart.graphDrawingParameters.xOffset = xOffset;
+    chart.graphDrawingParameters.columnsOnCanvas = chart.numOfVisibleGraphColumns;
+
+}
+
+function drawHorizontalLineAboveText(chart){ // above dates
+	  chart.iCtx.beginPath();
+	  chart.iCtx.strokeStyle = "grey";
+	  chart.iCtx.moveTo(0, chart.graph.height - DATESPACE + 2);
+	  chart.iCtx.lineTo(chart.graph.width, chart.graph.height - DATESPACE + 2);
+	  chart.iCtx.stroke();
+}
+
+function drawDates(chart, {xStart, xEnd, xOffset, xEndPoint, xStartPoint}) {
+    // fired on every redraw (for optimization - only fire when slider is moved)
+    chart.iCtx.clearRect(0, chart.graph.height - DATESPACE, chart.graph.width, DATESPACE);
+    // takes the range start, end
+    // better to draw chart with each line draw OR use the same formulas
+    // TODO make new consts for repetitive formulas, like calc position with offset
+    let columnWidth = (xEndPoint - xStartPoint) / (xEnd - xStart);
+    
+	  let dateSkipCounter = 0;
+	  let skipFactor;
+	  skipFactor = Math.floor(80 / columnWidth);
+
+
+    let y =chart.graph.height - 5;
+    let currentX = 0; 
+
+	  chart.iCtx.font = "14px Helvetica"; //font for the numbers
+	  chart.iCtx.fillStyle = "grey";
+    for (let i = xStart; i < xEnd + 1; i++) {
+        if (dateSkipCounter == 0) {
+            // TODO finish rounding floats
+            currentX = help.round((i - xStart) * columnWidth - xOffset);
+            let date = new Date(chart.x[i]);
+            date = MONTHS[date.getMonth()] + ' ' + date.getDate();
+            chart.iCtx.fillText(date, currentX, y);
+
+            // skipping some of them
+            dateSkipCounter = skipFactor;
+        } else {
+            dateSkipCounter -= 1;
+        }
+    } 
+
+		// if (iteration == 0 && dateSkipCounter == 0 && mode != "partial" &&
+		//     chart.isAnyArrayActive()){
+		//     let date = new Date(chart.x[i]);
+		//     date = MONTHS[date.getMonth()] + ' ' + date.getDate();
+		//     ctx.fillText(date, x, chart.graph.height - 5);
+
+		//     // skipping some of them
+		//     dateSkipCounter = skipFactor;
+		// } else {
+		//     dateSkipCounter -= 1;
+		// }
+}
+
+function drawNumbers(chart, ceiling) {
+	  // drawing the numbers on the left side
+	  let y = chart.graph.height - DATESPACE;
+    chart.iCtx.clearRect(0, 0, 300, y);
+	  let curNum = 0;
+    let rowStep = ceiling / NUMOFROWS;
+    let rowHeight = (chart.graph.height - DATESPACE) / NUMOFROWS;
+    // TODO round floats
+
+	  chart.iCtx.font = "14px Helvetica"; //font for the numbers
+	  chart.iCtx.fillStyle = "grey";
+	  for (let i=0; i < NUMOFROWS; i++){
+		    chart.iCtx.fillText(curNum, 20, y - 10);
+		    curNum += rowStep;
+		    y -= rowHeight;
+	  }
+	  // if (chart.isAnyArrayActive()){ //in case no array is selected
+	  //     drawNumbers();
+	  // } else {
+	  //     chart.iCtx.globalAlpha = 1 - chart.opacity;
+	  //     chart.iCtx.font = `80px sans-serif`;
+	  //     chart.iCtx.fillText("N/A", chart.graph.width / 2 - 40, chart.graph.height / 2);
+	  // }
+
+}
 
 class DrawingParameters{
     constructor(ctx, xArray, yArray, color, yStartPoint, yEndPoint, xStartPoint, xEndPoint,
@@ -516,10 +668,11 @@ class Chart{
 
         this.convertData(data);
         createLayout(this, title);
-        this.initialConfiguration();
+        initialConfiguration(this);
 
         this.drawGraphOnMovement();
         this.drawMinimap();
+        drawNumbers(this, this.graphDrawingParameters.ceiling);
         // this.drawHorizontalLine();
 
     }
@@ -561,97 +714,22 @@ class Chart{
     }
 
     // configuring the graph
-    calculateCutout () {
-        // TODO gotta calc the columns and the offset
-        // the offset is later used by drawgraph to calculate Translate
-        let lPoint = parseInt(getComputedStyle(this.slider).left);
-        let rPoint = lPoint + parseInt(getComputedStyle(this.slider).width);
-        let mColumnWidth = this.minimap.width / this.x.length;
-        this.numOfVisibleGraphColumns = (rPoint - lPoint) / mColumnWidth;
-        
-        this.sliderColumnStart = Math.floor(lPoint / mColumnWidth);
-        this.sliderColumnEnd = Math.ceil(rPoint / mColumnWidth);
-
-        // offset: difference between the position of slider coords and closest column coords
-        // gotta convert that to the graph offset in drawGraph
-        this.sliderOffset = lPoint - this.sliderColumnStart * mColumnWidth;
-
-
-        // TODO round this float probably
-
-
-    }
-    initialConfiguration(){
-
-        //  this.rowHeight = (this.graph.height - DATESPACE) / NUMOFROWS;
-
-        // finds the maxmimum array value to scale the graph ceiling
-        this.calculateCutout();
-        // configuring the initial ceiling so that the drawing func can check against it
-        // TODO optimize this
-
-        // old ceilings are needed to track changes in graph heights
-        // graphCeiling is needed to dynamically stop animations
-        this.oldGraphCeiling = myMath.findPrettyMax(this.lines, 0, this.x.length);
-        this.graphCeiling = myMath.findPrettyMax(this.lines, 0, this.x.length);
-        this.oldMinimapCeiling = myMath.findPrettyMax(this.lines, 0, this.x.length);
-
-        // configuring parameters for drawing
-        this.graphDrawingParameters =
-            new DrawingParameters(this.gCtx, this.x, null, null, 0, this.graph.height - DATESPACE,
-                                  0, this.graph.width, null, null, null, this.oldGraphCeiling, null,
-                                  this.numOfVisibleGraphColumns);
-        this.minimapDrawingParameters = // TODO change to mini values
-            new DrawingParameters(this.mCtx, this.x, null, null, 0, this.minimap.height,
-                                  0, this.minimap.width, 0, this.x.length - 1, null, this.oldMinimapCeiling,
-                                  null, this.x.length);
-
-        // TODO is it better that each function has own opacity or maybe create a wrapper instead of
-        // it being gloabal
-        this.opacity = 1;
-
-
-        this.drawHorizontalLineAboveText();
-
-    }
 
     drawGraphOnCheck(){
-        this.configureGraphParams();
+        configureGraphParams(this);
         this.drawGraph();
     }
 
     drawGraphOnMovement(){
-        this.calculateCutout();
-        this.configureGraphParams();
-        this.drawText(this.graphDrawingParameters);
-        this.drawNumbers(this.graphDrawingParameters.ceiling);
+        calculateCutout(this);
+        configureGraphParams(this);
+        drawDates(this, this.graphDrawingParameters);
         this.drawGraph();
-
-    }
-    configureGraphParams(){
-        let xStart = this.sliderColumnStart;
-        let xEnd = this.sliderColumnEnd;
-
-        let ceiling = myMath.findPrettyMax(this.lines, xStart, xEnd);
-
-        // the offset of graph should be much bigger
-        // accounting for the fact that graph is partial and minimap if full
-        // divide by number of cutout columns and multiply by total number
-        let xOffset = this.sliderOffset / this.minimap.width * this.graph.width;
-        let numOfCutColumns = this.sliderColumnEnd - this.sliderColumnStart;
-        xOffset = xOffset / numOfCutColumns * this.x.length;
-
-        // checking if i need the animation
-        this.graphDrawingParameters.xStart = xStart;
-        this.graphDrawingParameters.xEnd = xEnd;
-        this.graphDrawingParameters.ceiling = ceiling;
-        this.graphDrawingParameters.xOffset = xOffset;
-        this.graphDrawingParameters.columnsOnCanvas = this.numOfVisibleGraphColumns;
 
     }
     drawGraph(){
         this.gCtx.clearRect(0, 0, this.graph.width, this.graph.height);
-        // this.calculateCutout();
+        // calculateCutout(this);
         if (this.oldGraphCeiling != this.graphDrawingParameters.ceiling) { // TODO consider code optimization with drawMinimap
             this.animation(this.graphDrawingParameters);
             this.oldGraphCeiling = this.graphDrawingParameters.ceiling;
@@ -672,17 +750,17 @@ class Chart{
         // let visibleColumnWidth = areaWidth / columnsOnCanvas; 
 
         let columnWidth = areaWidth  / columnsOnCanvas; //used to calculate the number of columns on the screen
-        let yFactor = areaHeight / ceiling;
+        let numsPerPixel = areaHeight / ceiling;
 
         let currentX = xStartPoint - xOffset;
-        let currentY = help.round(yArray[xStart] * yFactor) - yStartPoint;
+        let currentY = help.round(yArray[xStart] * numsPerPixel) - yStartPoint;
 
         
         ctx.beginPath();
         // ctx.moveTo(currentX, currentY);
         for (let i = xStart; i < xEnd + 1; i++) {
             currentX = help.round((i - xStart) * columnWidth) - xOffset;
-            currentY = yEndPoint - help.round( yArray[i] * yFactor ) - yStartPoint;
+            currentY = yEndPoint - help.round( yArray[i] * numsPerPixel ) - yStartPoint;
 
             ctx.lineTo(currentX, currentY);
         }
@@ -717,7 +795,7 @@ class Chart{
                 parameters.ceiling = currentCeiling;
                 currentCeiling += distributedDifference;
                 this.drawWrapper(parameters);
-                this.drawNumbers(parameters.ceiling);
+                drawNumbers(this, parameters.ceiling);
                 counter += 1;
             }
         };
@@ -785,83 +863,6 @@ class Chart{
 	          ctx.lineWidth = "2";
 
 	      }
-    }
-    drawText({xStart, xEnd, xOffset, xEndPoint, xStartPoint}) {
-        // fired on every redraw (for optimization - only fire when slider is moved)
-        this.iCtx.clearRect(0, this.graph.height - DATESPACE, this.graph.width, DATESPACE);
-        // takes the range start, end
-        // better to draw this with each line draw OR use the same formulas
-        // TODO make new consts for repetitive formulas, like calc position with offset
-        let columnWidth = (xEndPoint - xStartPoint) / (xEnd - xStart);
-        
-	      let dateSkipCounter = 0;
-	      let skipFactor;
-	      skipFactor = Math.floor(80 / columnWidth);
-
-
-        let y =this.graph.height - 5;
-        let currentX = 0; 
-
-	      this.iCtx.font = "14px Helvetica"; //font for the numbers
-	      this.iCtx.fillStyle = "grey";
-        for (let i = xStart; i < xEnd + 1; i++) {
-            if (dateSkipCounter == 0) {
-                // TODO finish rounding floats
-                currentX = help.round((i - xStart) * columnWidth - xOffset);
-                let date = new Date(this.x[i]);
-                date = MONTHS[date.getMonth()] + ' ' + date.getDate();
-                this.iCtx.fillText(date, currentX, y);
-
-                // skipping some of them
-                dateSkipCounter = skipFactor;
-            } else {
-                dateSkipCounter -= 1;
-            }
-        } 
-
-		    // if (iteration == 0 && dateSkipCounter == 0 && mode != "partial" &&
-		    //     this.isAnyArrayActive()){
-		    //     let date = new Date(this.x[i]);
-		    //     date = MONTHS[date.getMonth()] + ' ' + date.getDate();
-		    //     ctx.fillText(date, x, this.graph.height - 5);
-
-		    //     // skipping some of them
-		    //     dateSkipCounter = skipFactor;
-		    // } else {
-		    //     dateSkipCounter -= 1;
-		    // }
-    }
-    drawHorizontalLineAboveText(){ // above dates
-	      this.iCtx.beginPath();
-	      this.iCtx.strokeStyle = "grey";
-	      this.iCtx.moveTo(0, this.graph.height - DATESPACE + 2);
-	      this.iCtx.lineTo(this.graph.width, this.graph.height - DATESPACE + 2);
-	      this.iCtx.stroke();
-    }
-    drawNumbers(ceiling) {
-	      // drawing the numbers on the left side
-	      let y = this.graph.height - DATESPACE;
-        this.iCtx.clearRect(0, 0, 300, y);
-	      let curNum = 0;
-        let rowStep = ceiling / NUMOFROWS;
-        let rowHeight = (this.graph.height - DATESPACE) / NUMOFROWS;
-        // TODO round floats
-
-	      this.iCtx.font = "14px Helvetica"; //font for the numbers
-	      this.iCtx.fillStyle = "grey";
-	      for (let i=0; i < NUMOFROWS; i++){
-		        this.iCtx.fillText(curNum, 20, y - 10);
-		        curNum += rowStep;
-		        y -= rowHeight;
-	      }
-	      // if (this.isAnyArrayActive()){ //in case no array is selected
-	      //     drawNumbers();
-	      // } else {
-	      //     this.iCtx.globalAlpha = 1 - this.opacity;
-	      //     this.iCtx.font = `80px sans-serif`;
-	      //     this.iCtx.fillText("N/A", this.graph.width / 2 - 40, this.graph.height / 2);
-	      // }
-
     }
     drawPopup({clientX}){
         // gets the current mouse position and prints the appropriate array values
@@ -1007,6 +1008,7 @@ class Chart{
         } */
 
         this.currentColumnCursor = currentGraphColumn;
+        // TODO clear only what's necessary
         this.pCtx.clearRect(0, 0, this.popup.width, this.popup.height);
         displayTooltip();
         drawVerticalLine();
@@ -1148,7 +1150,7 @@ class stackedBarChart{
     }
 }
 
-class barChart{
+class barChart {
     constructor(data){
         this.days = [];
         importDays(4, this.days);
@@ -1159,6 +1161,7 @@ class barChart{
 
 
         this.destructureData(data);
+        initialConfiguration(this);
         // this.drawRectangle(data["colors"]["y0"]);
         this.drawGraph();
 
@@ -1184,9 +1187,9 @@ class barChart{
         let numOfColumns = xEnd - xStart;
         let columnWidth = this.graph.width / numOfColumns;
 
-        let yFactor = areaHeight / ceiling;
+        let numsPerPixel = areaHeight / ceiling;
         let currentX = 0;
-        let currentY = areaHeight - array[0] * yFactor;
+        let currentY = areaHeight - array[0] * numsPerPixel;
 
         let fillDistance = this.graph.height - DATESPACE - currentY; // on the Y axis
         let fillWidth = this.graph.width / numOfColumns - 1; // on the X axis
@@ -1195,7 +1198,7 @@ class barChart{
         for (let x = xStart; x < xEnd; x++) {
             this.gCtx.fillRect(currentX, currentY, fillWidth, fillDistance);
 
-            currentY = areaHeight - array[x] * yFactor;
+            currentY = areaHeight - array[x] * numsPerPixel;
             currentX += columnWidth;
             // TODO insert spaces between columns
 
