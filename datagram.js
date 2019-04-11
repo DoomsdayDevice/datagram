@@ -32,6 +32,17 @@ const SETTINGS = {
 };
 
 const myMath = {
+    findPrettyMax: function (chart, xStart, xEnd){
+        if(chart.constructor.name == "Chart"){
+            ceiling = myMath.findPrettyMaxForLineChart(chart.lines, xStart, xEnd);
+        } else if(chart.constructor.name == "barChart") {
+            ceiling = myMath.findPrettyMaxForBarChart(chart.y, xStart, xEnd);
+        } else if(chart.constructor.name == "stackedBarChart") {
+            // uses the sum of all arrays to find initial max
+            ceiling = myMath.findPrettyMaxForBarChart(chart.getSummedArray(), xStart, xEnd);
+        }
+        return ceiling;
+    },
     findPrettyMaxForLineChart: function (listOfArrays, xStart, xEnd){
         //TODO findPrettyMax should take an array and return a max number
 
@@ -558,8 +569,8 @@ function configureGraphParams(chart){
     let xStart = chart.sliderColumnStart;
     let xEnd = chart.sliderColumnEnd;
 
-    let ceiling = myMath.findPrettyMaxForLineChart(chart.lines, xStart, xEnd);
-
+    // TODO depending on the type - call appropriate func ceiling func
+    let ceiling = myMath.findPrettyMax(chart, xStart, xEnd);
     // the offset of graph should be much bigger
     // accounting for the fact that graph is partial and minimap if full
     // divide by number of cutout columns and multiply by total number
@@ -713,6 +724,9 @@ function declareChartVars(chart){
     chart.numOfVisibleGraphColumns = null; // used to calculate number of columns on the screen
     chart.sliderOffset = null; //tracks diff between slider pos and closest column
     chart.previousTouchPosition = null; // for tracking finger movement
+
+    chart.sliderColumnStart = null; // from slider; in calculateCutout()
+    chart.sliderColumnEnd = null;
 }
 function launchChart(chart, data, title){
     chart.destructureData(data);
@@ -1164,7 +1178,7 @@ class line2XChart{
         // dummies TODO
         this.lines = [];
 
-        let title = "LINE 2Y + 2Y";
+        let title = "LINE 2X + 2X";
         launchChart(this, data, title);
 
     }
@@ -1217,9 +1231,8 @@ class stackedBarChart{
         // this.color = data["colors"]["y0"];
     }
     // TODO dummies
-    drawWrapper(){
-        // calculate the ceiling based on the sum of all Y's
-        // create a new array which is a sum of all Y's and push that to find ceiling
+    getSummedArray(xStart=0, xEnd=this.bars[0].length){
+        // TODO change for all the active arrays
         let summedArray = this.bars[0];
         for (let i= 1; i < this.bars.length; i++){
             for (let j = 0; j < this.bars[i].length; j++){
@@ -1230,14 +1243,25 @@ class stackedBarChart{
         // send the array to find ceil
         let ceiling = myMath.findPrettyMaxForBarChart(summedArray, 0, summedArray.length);
         console.log("DA CEIL", ceiling);
-
-        // iterate through each barchart 
+        return summedArray;
+    }
+    drawWrapper(){
     }
     drawGraph(){
         // iterate through each bar and draw one by one
+        // use the parameters
+        console.log("param", this.graphDrawingParameters);
+        // set teh y array in params and the color
+        // drawBar(this.graphDrawingParameters);
+        // TODO STARTING X POS IN THIS FUNC
+        // this.graphDrawingParameters.color = t
+        // for
+        // drawBars(this, this.graphDrawingParameters);
+        
     }
     drawBar(){
-        
+        // create a universal with bars
+
     }
     drawPopup(){
         
@@ -1291,36 +1315,7 @@ class barChart {
         this.minimapDrawingParameters.yArray = this.y;
         this.graphDrawingParameters.color = this.color;
         this.minimapDrawingParameters.color = this.color;
-        this.drawBars(parameters);
-    }
-    drawBars({ctx, yArray, xStart, xEnd, color, yEndPoint, yStartPoint}){
-        // let ceiling = Math.max(...yArray.slice(xStart, xEnd)); // TODO TEMP reuse old code and find pretty nums
-        let ceiling = myMath.findPrettyMaxForBarChart(yArray, xStart, xEnd);
-        // let areaHeight = //this.graph.height - DATESPACE;
-        let areaHeight = yEndPoint - yStartPoint;
-        let areaWidth = this.graph.width;
-
-        let numOfColumns = xEnd - xStart;
-        let columnWidth = this.graph.width / numOfColumns;
-
-        let numsPerPixel = areaHeight / ceiling;
-        let currentX = 0;
-        let currentY = areaHeight - yArray[0] * numsPerPixel;
-
-        let fillDistance = this.graph.height - DATESPACE - currentY; // on the Y axis
-        let fillWidth = this.graph.width / numOfColumns - 1; // on the X axis
-
-        ctx.fillStyle = color;
-        for (let x = xStart; x < xEnd; x++) {
-            fillDistance = this.graph.height - DATESPACE - currentY; // on the Y axis
-            ctx.fillRect(currentX, currentY, fillWidth, fillDistance);
-
-            currentY = areaHeight - yArray[x] * numsPerPixel;
-            currentX += columnWidth;
-            // TODO insert spaces between columns
-
-        }
-
+        drawBars(this, parameters);
     }
 
     // TODO dummies
@@ -1332,6 +1327,35 @@ class barChart {
     }
 }
 
+function drawBars(chart, {ctx, yArray, xStart, xEnd, color, yEndPoint, yStartPoint}){
+    // let ceiling = Math.max(...yArray.slice(xStart, xEnd)); // TODO TEMP reuse old code and find pretty nums
+    let ceiling = myMath.findPrettyMaxForBarChart(yArray, xStart, xEnd);
+    // let areaHeight = //chart.graph.height - DATESPACE;
+    let areaHeight = yEndPoint - yStartPoint;
+    let areaWidth = chart.graph.width;
+
+    let numOfColumns = xEnd - xStart;
+    let columnWidth = chart.graph.width / numOfColumns;
+
+    let numsPerPixel = areaHeight / ceiling;
+    let currentX = 0;
+    let currentY = areaHeight - yArray[0] * numsPerPixel;
+
+    let fillDistance = chart.graph.height - DATESPACE - currentY; // on the Y axis
+    let fillWidth = chart.graph.width / numOfColumns - 1; // on the X axis
+
+    ctx.fillStyle = color;
+    for (let x = xStart; x < xEnd; x++) {
+        fillDistance = chart.graph.height - DATESPACE - currentY; // on the Y axis
+        ctx.fillRect(currentX, currentY, fillWidth, fillDistance);
+
+        currentY = areaHeight - yArray[x] * numsPerPixel;
+        currentX += columnWidth;
+        // TODO insert spaces between columns
+
+    }
+
+}
 
 class areaChart{
     constructor(data){
@@ -1470,7 +1494,7 @@ function importDays(chartNumber, whereToAppend){
     }
 }
 // OLD CHARTS
-// initiateCharts();
+initiateCharts();
 
 // initiate each chart; also appends each to arrayOfNewCharts
 for (let c = 1; c <= 5; c++) {
