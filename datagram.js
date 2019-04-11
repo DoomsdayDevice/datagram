@@ -10,8 +10,10 @@ const help = {
     calcXPositionOnCanvas: function() {
         // TODO implement this; uses xFactor and shit in both text, line and nums
         
-    }
-};
+    },
+    daysInMonth: function(month, year) {
+        return new Date(year, month, 0).getDate();
+}};
 
 const NIGHT = {
     lead: "#1d2733"
@@ -30,12 +32,30 @@ const SETTINGS = {
 };
 
 const myMath = {
-    findPrettyMax: function (listOfArrays, xStart, xEnd) {
-        // find the optimal ceiling for the graph (tries to find a round pretty number)
+    findPrettyMaxForLineChart: function (listOfArrays, xStart, xEnd){
+        //TODO findPrettyMax should take an array and return a max number
 
-        // takes the biggest number from the set and defines the ceiling of the graph based on it
-        let max = myMath.findActiveMax(listOfArrays, xStart, xEnd);
+        // recursively call it for all the active arrays
 
+
+        //find max THEN turn it into a pretty num
+        let currentMax = 0;
+        let slicedArray;
+        for (let i=0; i < listOfArrays.length; i++){
+            if (listOfArrays[i]["checkbox"].checked){
+                slicedArray = listOfArrays[i]["array"].slice(xStart, xEnd+1);
+                currentMax = Math.max(myMath.findMaxInArray(slicedArray), currentMax);
+            }
+        }
+        // turn into pretty
+        return myMath.findPrettyRoundNum(currentMax);
+
+    },
+    findPrettyMaxForBarChart: function(array, xStart, xEnd){
+        let slicedArray = array.slice(xStart, xEnd+1);
+        return myMath.findPrettyRoundNum(Math.max(...slicedArray));
+    },
+    findPrettyRoundNum: function(max){
         max *= 1.1; // make it a bit higher so there's some space above
         let currentNumber = NUMOFROWS;
         let index = 0;
@@ -53,23 +73,10 @@ const myMath = {
 
         return rounded;
     },
-    findActiveMax: function (listOfArrays, xStart, xEnd) {
-        // iterate through active arrays, find the biggest num
-        let findMaxInArray = (array) => {
-            return Math.max(...array.slice(xStart, xEnd+1));
-        };
+    findMaxInArray: function(array){
+        return Math.max(...array);
+    },
 
-        let currentMax = 0;
-        for (let i=0; i < listOfArrays.length; i++){
-            // TODO if active
-            if (listOfArrays[i]["checkbox"].checked){
-                currentMax = Math.max(findMaxInArray(listOfArrays[i]["array"]), currentMax);
-
-            }
-        }
-        return currentMax;
-
-    }
 };
 
 
@@ -358,8 +365,6 @@ function createLayout(chart, title){
 }
 function initialConfiguration(chart){
 
-    //  chart.rowHeight = (chart.graph.height - DATESPACE) / NUMOFROWS;
-
     // finds the maxmimum array value to scale the graph ceiling
     calculateCutout(chart);
     // configuring the initial ceiling so that the drawing func can check against it
@@ -367,20 +372,20 @@ function initialConfiguration(chart){
 
     // old ceilings are needed to track changes in graph heights
     // graphCeiling is needed to dynamically stop animations
-    chart.oldGraphCeiling = myMath.findPrettyMax(chart.lines, 0, chart.x.length);
-    chart.graphCeiling = myMath.findPrettyMax(chart.lines, 0, chart.x.length);
-    chart.oldMinimapCeiling = myMath.findPrettyMax(chart.lines, 0, chart.x.length);
+    let initialGraphCeiling = myMath.findPrettyMaxForLineChart(chart.lines, 0, chart.x.length); //TODO change to cutout size
+    
+    let initialMinimapCeiling = myMath.findPrettyMaxForLineChart(chart.lines, 0, chart.x.length);
 
     // configuring parameters for drawing
     chart.graphDrawingParameters =
         new DrawingParameters(chart.gCtx, chart.x, null, null, 0, chart.graph.height - DATESPACE,
-                              0, chart.graph.width, null, null, null, chart.oldGraphCeiling, null,
+                              0, chart.graph.width, null, null, initialGraphCeiling, initialGraphCeiling, null,
                               chart.numOfVisibleGraphColumns);
-    chart.minimapDrawingParameters = // TODO change to mini values
-    new DrawingParameters(chart.mCtx, chart.x, null, null, 0, chart.minimap.height,
-                          0, chart.minimap.width, 0, chart.x.length - 1, null, chart.oldMinimapCeiling,
-                          null, chart.x.length);
-
+    chart.minimapDrawingParameters =
+        new DrawingParameters(chart.mCtx, chart.x, null, null, 0, chart.minimap.height,
+                              0, chart.minimap.width, 0, chart.x.length - 1, initialMinimapCeiling, initialMinimapCeiling,
+                              null, chart.x.length);
+    
     // TODO is it better that each function has own opacity or maybe create a wrapper instead of
     // it being gloabal
     // chart.opacity = 1;
@@ -388,14 +393,27 @@ function initialConfiguration(chart){
 
 }
 
-function moveSlider(event, chart, movement){
-    let movementX = event.movementX;
-    event.preventDefault();
+
+
+function moveSlider(event, chart, movement){ // WRAPPER
+    let movementX;
 
     if (event.type === "touchmove"){ // check if on mobile
         movementX = Math.round(event.touches[0].clientX - chart.previousTouchPosition);
         chart.previousTouchPosition = event.touches[0].clientX;
+    } else {
+        movementX = event.movementX;
     }
+
+    // TODO THROTTLE WITH TIMESTAMPS FOR FAST MOVEMENT
+    if (movementX != 0){
+        actuallyMoveSlider(movementX, chart, movement);
+    }
+    
+}
+function actuallyMoveSlider(movementX, chart, movement){
+    event.preventDefault();
+
 
     let sliderStyle = getComputedStyle(chart.slider);
     let lSpaceStyle = getComputedStyle(chart.lSpace);
@@ -540,7 +558,7 @@ function configureGraphParams(chart){
     let xStart = chart.sliderColumnStart;
     let xEnd = chart.sliderColumnEnd;
 
-    let ceiling = myMath.findPrettyMax(chart.lines, xStart, xEnd);
+    let ceiling = myMath.findPrettyMaxForLineChart(chart.lines, xStart, xEnd);
 
     // the offset of graph should be much bigger
     // accounting for the fact that graph is partial and minimap if full
@@ -610,12 +628,12 @@ function drawDates(chart, {xStart, xEnd, xOffset, xEndPoint, xStartPoint}) {
 		//     dateSkipCounter -= 1;
 		// }
 }
-function drawNumbers(chart, ceiling) {
+function drawNumbers(chart, parameters) {
 	  // drawing the numbers on the left side
 	  let y = chart.graph.height - DATESPACE;
-    chart.iCtx.clearRect(0, 0, 300, y);
+    chart.iCtx.clearRect(0, 0, chart.graph.width, y);
 	  let curNum = 0;
-    let rowStep = ceiling / NUMOFROWS;
+    let rowStep = parameters.ceiling / NUMOFROWS;
     let rowHeight = (chart.graph.height - DATESPACE) / NUMOFROWS;
     // TODO round floats
 
@@ -626,6 +644,8 @@ function drawNumbers(chart, ceiling) {
 		    curNum += rowStep;
 		    y -= rowHeight;
 	  }
+    drawHorizontalLines(chart, parameters, rowHeight);
+
 	  // if (chart.isAnyArrayActive()){ //in case no array is selected
 	  //     drawNumbers();
 	  // } else {
@@ -640,14 +660,15 @@ function drawMinimap(chart){
     // TODO optimize ceiling calculations so i don't do them twice with drawGraph
     chart.mCtx.clearRect(0, 0, chart.minimap.width, chart.minimap.height);
 
-    let ceiling = myMath.findPrettyMax(chart.lines, 0, chart.x.length);
+    let ceiling = myMath.findPrettyMaxForLineChart(chart.lines, 0, chart.x.length); //recalc ceil
+    // let ceiling = chart.minimapDrawingParameters.ceiling;
     chart.minimapDrawingParameters.ceiling = ceiling;
-    chart.minimapDrawingParameters.xOffset = 0;
+    chart.minimapDrawingParameters.xOffset = 0; // mini doesn't need an offset
 
     // checking if i need to do an animation
-    if (chart.oldMinimapCeiling != ceiling) {
+    if (chart.minimapDrawingParameters.oldCeiling != ceiling) {
         chart.animation(chart.minimapDrawingParameters);
-        chart.oldMinimapCeiling = ceiling;
+        chart.minimapDrawingParameters.oldCeiling  = ceiling;
     } else {
         chart.drawWrapper(chart.minimapDrawingParameters);
     }
@@ -663,8 +684,30 @@ function drawGraphOnMovement(chart){
     drawDates(chart, chart.graphDrawingParameters);
     chart.drawGraph();
 
+
 }
 
+function drawHorizontalLines(chart, {ctx}, rowHeight,){
+    // TODO i prolly don't need the parameters object here
+	  let drawLines = () =>{
+        let x = 0;
+        let xEnd = chart.graph.width;
+	      let y = DATESPACE - 21;
+	      for (let i = 0; i < NUMOFROWS; i++){
+		        chart.iCtx.moveTo(x, y);
+		        chart.iCtx.lineTo(xEnd, y);
+		        y += rowHeight;
+	      }
+	  };
+	  chart.iCtx.beginPath();
+	  drawLines();
+
+	  chart.iCtx.globalAlpha = 0.4;
+	  chart.iCtx.lineWidth = "2";
+	  chart.iCtx.strokeStyle = "grey";
+    chart.iCtx.stroke();
+	  chart.iCtx.globalAlpha = 1;
+}
 function declareChartVars(chart){
     chart.currentColumnCursor = null; // used to track which part of the info canv to redraw
     chart.numOfVisibleGraphColumns = null; // used to calculate number of columns on the screen
@@ -678,7 +721,7 @@ function launchChart(chart, data, title){
 
     drawGraphOnMovement(chart);
     drawMinimap(chart);
-    drawNumbers(chart, chart.graphDrawingParameters.ceiling);
+    drawNumbers(chart, chart.graphDrawingParameters);
     // chart.drawHorizontalLine();
     
 }
@@ -757,9 +800,9 @@ class Chart{
     drawGraph(){
         this.gCtx.clearRect(0, 0, this.graph.width, this.graph.height);
         // calculateCutout(this);
-        if (this.oldGraphCeiling != this.graphDrawingParameters.ceiling) { // TODO consider code optimization with drawMinimap
+        if (this.graphDrawingParameters.oldCeiling != this.graphDrawingParameters.ceiling) { // TODO consider code optimization with drawMinimap
             this.animation(this.graphDrawingParameters);
-            this.oldGraphCeiling = this.graphDrawingParameters.ceiling;
+            this.graphDrawingParameters.oldCeiling = this.graphDrawingParameters.ceiling;
         } else {
             this.drawWrapper(this.graphDrawingParameters);
         }
@@ -804,15 +847,13 @@ class Chart{
         // draws lines with given parameters and each time adjusts the ceiling
         // old ceiling
         // RM extra code
-        let ceiling = parameters.ceiling;
-        let oldCeiling = parameters.oldCeiling;
-
         let numOfFrames = 30; //TODO TEMP
-        let ceilRelationship = (1 / ceiling) * this.oldGraphCeiling;
-        let difference = ceiling - this.oldGraphCeiling;
+        let ceilRelationship = (1 / parameters.ceiling) * parameters.oldCeiling;
+        let difference = parameters.ceiling - parameters.oldCeiling;
         let distributedDifference = difference / numOfFrames;
+
         
-        let currentCeiling = this.oldGraphCeiling + distributedDifference;
+        let currentCeiling = parameters.oldCeiling + distributedDifference;
 
         let counter = 0;
         let drawAnimation = () => {
@@ -822,7 +863,7 @@ class Chart{
                 parameters.ceiling = currentCeiling;
                 currentCeiling += distributedDifference;
                 this.drawWrapper(parameters);
-                drawNumbers(this, parameters.ceiling);
+                drawNumbers(this, parameters);
                 counter += 1;
             }
         };
@@ -843,37 +884,6 @@ class Chart{
     }
 
 
-    drawHorizontalLines(){
-        
-	      let drawLines = () =>{
-	          let y = this.dateSpace - 21;
-	          for (let i = 0; i < this.numOfRows; i++){
-		            ctx.moveTo(x, y);
-		            ctx.lineTo(xEnd, y);
-		            y += this.rowHeight;
-	          }
-	          ctx.globalAlpha = 0.5;
-	          ctx.strokeStyle = "grey";
-	          ctx.lineWidth = "1";
-	          
-
-	          ctx.stroke();
-	          ctx.beginPath();
-	          ctx.globalAlpha = 1;
-	      };
-	      ctx.beginPath();
-	      if (iteration == 0 && this.isAnyArrayActive()){
-	          drawLines();
-	          
-	      }
-	      ctx.strokeStyle = color;
-	      if (canvas == "graph"){
-	          ctx.lineWidth = "4";
-	      } else {
-	          ctx.lineWidth = "2";
-
-	      }
-    }
     drawPopup({clientX}){
         // gets the current mouse position and prints the appropriate array values
         let cutoutSize = this.sliderColumnEnd - this.sliderColumnStart;
@@ -883,7 +893,7 @@ class Chart{
 
         let currentArrayColumn = this.sliderColumnStart + currentGraphColumn;
 
-        let conversionQuotient = (this.graph.height - DATESPACE) / this.oldGraphCeiling;
+        let conversionQuotient = (this.graph.height - DATESPACE) / this.graphDrawingParameters.oldCeiling;
         let convertedVal;
         let date;
 
@@ -1142,6 +1152,7 @@ window.addEventListener("resize", onResize);
 
 
 class lineChart{
+    // TODO merge with Chart
     constructor(){
         // importDays(1);
     }
@@ -1153,12 +1164,11 @@ class line2XChart{
         // dummies TODO
         this.lines = [];
 
-        let title = "LINE 2X";
+        let title = "LINE 2Y + 2Y";
         launchChart(this, data, title);
 
     }
     destructureData(data){
-        console.log("data:", data);
 
         this.x = data["columns"][0];
         // this.y = data["columns"][1];
@@ -1166,6 +1176,7 @@ class line2XChart{
         // this.y.splice(0, 1);
         // this.color = data["colors"]["y0"];
     }
+    // TODO dummies
     drawWrapper(){
         
     }
@@ -1173,6 +1184,9 @@ class line2XChart{
         
     }
     drawPopup(){
+        
+    }
+    animation(){
         
     }
 }
@@ -1183,26 +1197,52 @@ class stackedBarChart{
         // dummies TODO
         this.lines = [];
 
-        let title = "STACKED";
+        let title = "STACKED + STACKED";
         launchChart(this, data, title);
 
     }
     destructureData(data){
-        console.log("data:", data);
 
         this.x = data["columns"][0];
+        console.log("data:", data);
+        // array of lines like in the first chart
+        this.bars = [];
+        for (let b = 1; b < data["columns"].length; b++){
+            data["columns"][b].splice(0, 1);
+            this.bars.push(data["columns"][b]);
+        }
         // this.y = data["columns"][1];
         // this.x.splice(0, 1);
         // this.y.splice(0, 1);
         // this.color = data["colors"]["y0"];
     }
+    // TODO dummies
     drawWrapper(){
-        
+        // calculate the ceiling based on the sum of all Y's
+        // create a new array which is a sum of all Y's and push that to find ceiling
+        let summedArray = this.bars[0];
+        for (let i= 1; i < this.bars.length; i++){
+            for (let j = 0; j < this.bars[i].length; j++){
+                summedArray[j] += this.bars[i][j];
+            }
+        }
+        console.log("SUM", summedArray);
+        // send the array to find ceil
+        let ceiling = myMath.findPrettyMaxForBarChart(summedArray, 0, summedArray.length);
+        console.log("DA CEIL", ceiling);
+
+        // iterate through each barchart 
     }
     drawGraph(){
+        // iterate through each bar and draw one by one
+    }
+    drawBar(){
         
     }
     drawPopup(){
+        
+    }
+    animation(){
         
     }
 }
@@ -1216,7 +1256,9 @@ class barChart {
         this.days = [];
         importDays(4, this.days);
         
-        let title = data["names"]["y0"];
+        
+        // let title = data["names"]["y0"];
+        let title = "BARS + LINES";
         launchChart(this, data, title);
 
     }
@@ -1252,7 +1294,8 @@ class barChart {
         this.drawBars(parameters);
     }
     drawBars({ctx, yArray, xStart, xEnd, color, yEndPoint, yStartPoint}){
-        let ceiling = Math.max(...yArray.slice(xStart, xEnd)); // TODO reuse old code and find pretty nums
+        // let ceiling = Math.max(...yArray.slice(xStart, xEnd)); // TODO TEMP reuse old code and find pretty nums
+        let ceiling = myMath.findPrettyMaxForBarChart(yArray, xStart, xEnd);
         // let areaHeight = //this.graph.height - DATESPACE;
         let areaHeight = yEndPoint - yStartPoint;
         let areaWidth = this.graph.width;
@@ -1280,13 +1323,13 @@ class barChart {
 
     }
 
-    // temporary dummies
+    // TODO dummies
     drawPopup(){
         
     }
-    // redraw() {
+    animation(){
         
-    // }
+    }
 }
 
 
@@ -1296,12 +1339,11 @@ class areaChart{
         // dummies TODO
         this.lines = [];
 
-        let title = "AREA";
+        let title = "AREA + AVERAGE PIE";
         launchChart(this, data, title);
 
     }
     destructureData(data){
-        console.log("data:", data);
 
         this.x = data["columns"][0];
         // this.y = data["columns"][1];
@@ -1309,6 +1351,8 @@ class areaChart{
         // this.y.splice(0, 1);
         // this.color = data["colors"]["y0"];
     }
+    
+    // TODO dummies
     drawWrapper(){
         
     }
@@ -1316,6 +1360,9 @@ class areaChart{
         
     }
     drawPopup(){
+        
+    }
+    animation(){
         
     }
 }
@@ -1367,25 +1414,50 @@ function initiateNewCharts(chartNumber){
     importMainData();
 }
 
-let year1 = [4, 12, 2018]; //start and end months
-let year2 = [1, 4, 2019];
+let year1 = [[4, 7], [12, 31], 2018]; //start and end months and days
+let year2 = [[1, 1], [4, 6], 2019];
 let years = [year1, year2];
 
 
 let filename;
+let startMonthOfYear;
+let startDayOfYear;
+let endMonthOfYear;
+let endDayOfYear;
+let counter = 0;
 function importDays(chartNumber, whereToAppend){
     for (let y = 0; y < years.length; y++){
-        for (let m = years[y][0]; m < years[y][1] + 1; m++){
+        startMonthOfYear = years[y][0][0];
+        endMonthOfYear = years[y][1][0];
+        startDayOfYear = years[y][0][1];
+        endDayOfYear = years[y][1][1];
+        for (let m = startMonthOfYear; m <= endMonthOfYear; m++){
             let month = m;
             if (month < 10) {month = '0' + month;}
             let folder = `${years[y][2]}-${month}`;
 
-            for (let d = 1; d < 31; d++){
+
+            // if it's the last month of year - apply end day, else max days
+            let endDay;
+            let startDay;
+            if (m == endMonthOfYear){
+                endDay = endDayOfYear;
+            } else {
+                endDay = help.daysInMonth(month, y);
+            }
+            if (m == startMonthOfYear){
+                startDay = startDayOfYear;
+            } else {
+                startDay = 1;
+            }
+            // if start month - starts at the start dat, else at 1
+            for (let d = startDay; d <= endDay; d++){
                 // import each object and append to the array of days which is a
                 // if it exists there
                 // TODO what if there's no response (no file)
                 let day = d;
                 if (day < 10) {day = '0' + day;}
+
                 let filename = `data/${chartNumber}/${folder}/${day}.json`;
                 // TODO print the imported objects
                 downloadDays(filename, whereToAppend);
