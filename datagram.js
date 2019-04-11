@@ -38,9 +38,14 @@ const myMath = {
         } else if(chart.constructor.name == "barChart") {
             ceiling = myMath.findPrettyMaxForBarChart(chart.y, xStart, xEnd);
         } else if(chart.constructor.name == "stackedBarChart") {
+            console.log("we're doing stacked inside prettyMax");
+            console.log("the summedArray here:", chart.getSummedArray());
             // uses the sum of all arrays to find initial max
             ceiling = myMath.findPrettyMaxForBarChart(chart.getSummedArray(), xStart, xEnd);
+        } else if(chart.constructor.name == "line2XChart") {
+            ceiling = myMath.findPrettyMaxForLineChart(chart.lines, xStart, xEnd);
         }
+        
         return ceiling;
     },
     findPrettyMaxForLineChart: function (listOfArrays, xStart, xEnd){
@@ -383,9 +388,9 @@ function initialConfiguration(chart){
 
     // old ceilings are needed to track changes in graph heights
     // graphCeiling is needed to dynamically stop animations
-    let initialGraphCeiling = myMath.findPrettyMaxForLineChart(chart.lines, 0, chart.x.length); //TODO change to cutout size
-    
-    let initialMinimapCeiling = myMath.findPrettyMaxForLineChart(chart.lines, 0, chart.x.length);
+    let initialGraphCeiling = myMath.findPrettyMax(chart, 0, chart.x.length); //TODO change to cutout size
+    let initialMinimapCeiling = myMath.findPrettyMax(chart, 0, chart.x.length);
+    console.log("we've configured the miniceil:", initialMinimapCeiling);
 
     // configuring parameters for drawing
     chart.graphDrawingParameters =
@@ -607,7 +612,7 @@ function drawDates(chart, {xStart, xEnd, xOffset, xEndPoint, xStartPoint}) {
 	  skipFactor = Math.floor(80 / columnWidth);
 
 
-    let y =chart.graph.height - 5;
+    let y = chart.graph.height - 5;
     let currentX = 0; 
 
 	  chart.iCtx.font = "14px Helvetica"; //font for the numbers
@@ -667,20 +672,26 @@ function drawNumbers(chart, parameters) {
 
 }
 
-function drawMinimap(chart){
+function drawMinimap(chart){ // PARENTS: createButtons, launchChart, 
     // TODO optimize ceiling calculations so i don't do them twice with drawGraph
     chart.mCtx.clearRect(0, 0, chart.minimap.width, chart.minimap.height);
 
-    let ceiling = myMath.findPrettyMaxForLineChart(chart.lines, 0, chart.x.length); //recalc ceil
-    // let ceiling = chart.minimapDrawingParameters.ceiling;
+    let ceiling = myMath.findPrettyMax(chart, 0, chart.x.length); //recal ceiling
     chart.minimapDrawingParameters.ceiling = ceiling;
     chart.minimapDrawingParameters.xOffset = 0; // mini doesn't need an offset
+    console.log("drawing mini");
 
     // checking if i need to do an animation
+    console.log("we're in the drawMinimap");
     if (chart.minimapDrawingParameters.oldCeiling != ceiling) {
+        console.log("different ceilings");
+        console.log("old:", chart.minimapDrawingParameters.oldCeiling);
+        console.log("new:", ceiling);
+
         chart.animation(chart.minimapDrawingParameters);
         chart.minimapDrawingParameters.oldCeiling  = ceiling;
     } else {
+        console.log("launching wrapper from mini");
         chart.drawWrapper(chart.minimapDrawingParameters);
     }
 
@@ -729,6 +740,7 @@ function declareChartVars(chart){
     chart.sliderColumnEnd = null;
 }
 function launchChart(chart, data, title){
+    console.log("doing ", title);
     chart.destructureData(data);
     createLayout(chart, title);
     initialConfiguration(chart);
@@ -1225,6 +1237,14 @@ class stackedBarChart{
             data["columns"][b].splice(0, 1);
             this.bars.push(data["columns"][b]);
         }
+        // getting the colors
+        this.colors = [];
+        let color;
+        let keys = Object.keys(data["colors"]);
+        for (let c = 0; c < keys.length; c++){
+            color = data.colors[keys[c]];
+            this.colors.push(color);
+        }
         // this.y = data["columns"][1];
         // this.x.splice(0, 1);
         // this.y.splice(0, 1);
@@ -1233,35 +1253,49 @@ class stackedBarChart{
     // TODO dummies
     getSummedArray(xStart=0, xEnd=this.bars[0].length){
         // TODO change for all the active arrays
-        let summedArray = this.bars[0];
+        // insert start and end
+        let summedArray = [...this.bars[0].slice(xStart, xEnd+1)];
+        let currentArray;
         for (let i= 1; i < this.bars.length; i++){
-            for (let j = 0; j < this.bars[i].length; j++){
-                summedArray[j] += this.bars[i][j];
+            currentArray = this.bars[i].slice(xStart, xEnd+1);
+            for (let j = 0; j < currentArray.length; j++){
+                summedArray[j] += currentArray[j];
             }
         }
-        console.log("SUM", summedArray);
         // send the array to find ceil
         let ceiling = myMath.findPrettyMaxForBarChart(summedArray, 0, summedArray.length);
-        console.log("DA CEIL", ceiling);
         return summedArray;
     }
-    drawWrapper(){
-    }
-    drawGraph(){
+    drawWrapper(parameters){ // PARENTS: drawMinimap, drawGraph
         // iterate through each bar and draw one by one
         // use the parameters
-        console.log("param", this.graphDrawingParameters);
         // set teh y array in params and the color
-        // drawBar(this.graphDrawingParameters);
         // TODO STARTING X POS IN THIS FUNC
-        // this.graphDrawingParameters.color = t
-        // for
-        // drawBars(this, this.graphDrawingParameters);
-        
+        let color;
+        let previousBarHeight;
+        let currentBarOffset = 0;
+        for (let b = 0; b < this.bars.length; b++){
+            parameters.color = this.colors[b];
+            parameters.yArray = this.bars[b];
+            parameters.color = this.colors[b];
+            parameters.yArray = this.bars[b];
+            // HOW TO CALC X EACH ITER
+            // subtract each step the calced bar height
+            // currentY = this.graph.height - DATESPACE - currentBarHeight;
+            // parameters.xStart = this.y;
+            
+            previousBarHeight = drawBars(this, parameters);
+            // currentY = currentY - previousBarHeight;
+            parameters.barOffset += previousBarHeight;
+            // send the bar offset instead of Y, which will be the combined previous Widths
+            // drawBars(this, parameters);
+        }
+        console.log("we launched the wrapper");
     }
-    drawBar(){
-        // create a universal with bars
-
+    drawGraph(){
+        // TODO clearing the canvas should prolly be done in the wrapper using the param ctx
+        this.gCtx.clearRect(0, 0, this.graph.width, this.graph.height); 
+        this.drawWrapper(this.graphDrawingParameters);
     }
     drawPopup(){
         
@@ -1306,15 +1340,13 @@ class barChart {
         this.drawWrapper(this.graphDrawingParameters);
     }
 
-    drawWrapper(parameters){
+    drawWrapper(parameters){ // gets called from drawMinimap and drawGraph
         //TODO prolly a dummy func here for compatibility with other charts
         // clean this up later
 
-        // i can probably move these to initial parameter config with a wrapper or something
-        this.graphDrawingParameters.yArray = this.y;
-        this.minimapDrawingParameters.yArray = this.y;
-        this.graphDrawingParameters.color = this.color;
-        this.minimapDrawingParameters.color = this.color;
+        // TODO i can probably move these to initial parameter config with a wrapper or something
+        parameters.yArray = this.y;
+        parameters.color = this.color;
         drawBars(this, parameters);
     }
 
@@ -1327,7 +1359,7 @@ class barChart {
     }
 }
 
-function drawBars(chart, {ctx, yArray, xStart, xEnd, color, yEndPoint, yStartPoint}){
+function drawBars(chart, {ctx, yArray, xStart, xEnd, color, yEndPoint, yStartPoint, barOffset=0}){
     // let ceiling = Math.max(...yArray.slice(xStart, xEnd)); // TODO TEMP reuse old code and find pretty nums
     let ceiling = myMath.findPrettyMaxForBarChart(yArray, xStart, xEnd);
     // let areaHeight = //chart.graph.height - DATESPACE;
@@ -1337,9 +1369,10 @@ function drawBars(chart, {ctx, yArray, xStart, xEnd, color, yEndPoint, yStartPoi
     let numOfColumns = xEnd - xStart;
     let columnWidth = chart.graph.width / numOfColumns;
 
-    let numsPerPixel = areaHeight / ceiling;
+    let numsPerPixel = areaHeight / ceiling; // TODO won't work with stacked bars
+
     let currentX = 0;
-    let currentY = areaHeight - yArray[0] * numsPerPixel;
+    let currentY = areaHeight - yArray[0] * numsPerPixel - barOffset;
 
     let fillDistance = chart.graph.height - DATESPACE - currentY; // on the Y axis
     let fillWidth = chart.graph.width / numOfColumns - 1; // on the X axis
@@ -1354,6 +1387,9 @@ function drawBars(chart, {ctx, yArray, xStart, xEnd, color, yEndPoint, yStartPoi
         // TODO insert spaces between columns
 
     }
+    // return the calculated stuff for
+    // previous bar height (fill distance)
+    return fillDistance; // for stacked bars
 
 }
 
@@ -1494,7 +1530,7 @@ function importDays(chartNumber, whereToAppend){
     }
 }
 // OLD CHARTS
-initiateCharts();
+// initiateCharts();
 
 // initiate each chart; also appends each to arrayOfNewCharts
 for (let c = 1; c <= 5; c++) {
