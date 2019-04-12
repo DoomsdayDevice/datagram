@@ -2,6 +2,7 @@ const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov
 const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const NUMOFROWS = 6; // how many numbers should be displayed on the left
 const DATESPACE = 23; // the space left to display the dates
+const NUMOFFRAMES = 10;
 const help = {
     round: function (number){
         // PARENTS: Chart.drawLine() drawText()
@@ -131,12 +132,9 @@ class Chart{
     constructor(data, title){
         // global vars
         this.currentColumnCursor = null; // used to track which part of the info canv to redraw
-        this.numOfVisibleGraphColumns = null; // used to calculate number of columns on the screen
-        this.sliderOffset = null; //tracks diff between slider pos and closest column
         this.previousTouchPosition = null; // for tracking finger movement
+        this.animationActive = false; // one animation at a time
 
-        this.sliderColumnStart = null; // from slider; in calculateCutout()
-        this.sliderColumnEnd = null;
 
         // dummies TODO
         this.lines = [];
@@ -147,7 +145,7 @@ class Chart{
 
         this.drawGraphOnMovement();
         this.drawMinimap();
-        this.drawNumbers(this.graphDrawingParameters);
+        this.drawNumbers(this.configureParametersForGraph());
         // this.drawHorizontalLine();
         
     }
@@ -204,30 +202,7 @@ class Chart{
 
     }
     initialConfiguration(){
-
-        // finds the maxmimum array value to scale the graph ceiling
-        this.calculateCutout();
-        // configuring the initial ceiling so that the drawing func can check against it
-        // TODO optimize this
-
-        // old ceilings are needed to track changes in graph heights
-        // graphCeiling is needed to dynamically stop animations
-        let initialGraphCeiling = this.findPrettyMax(0, this.x.length); //TODO change to cutout size
-        let initialMinimapCeiling = this.findPrettyMax(0, this.x.length);
-
-        // configuring parameters for drawing
-        this.graphDrawingParameters =
-            new DrawingParameters(this.gCtx, this.x, null, null, 0, this.graph.height - DATESPACE,
-                                  0, this.graph.width, null, null, initialGraphCeiling, initialGraphCeiling, null,
-                                  this.numOfVisibleGraphColumns);
-        this.minimapDrawingParameters =
-            new DrawingParameters(this.mCtx, this.x, null, null, 0, this.minimap.height,
-                                  0, this.minimap.width, 0, this.x.length - 1, initialMinimapCeiling, initialMinimapCeiling,
-                                  null, this.x.length);
-        
-        // TODO is it better that each function has own opacity or maybe create a wrapper instead of
-        // it being gloabal
-        // this.opacity = 1;
+        // this.calculateCutout();
         this.drawHorizontalLineAboveText();
 
     }
@@ -239,6 +214,14 @@ class Chart{
         this.div = document.createElement("div");
         document.body.appendChild(this.div);
         this.div.className = "main-container";
+        if (detectMobile()){
+            console.log("MOB");
+            this.div.style.width = innerWidth + "px";
+            this.div.style.left = "0 px";
+        } else {
+            this.div.style.width = innerWidth * 0.8 + "px";
+            // this.div.style.left = "0 px";
+        }
 
         // title
         let titleElem = document.createElement("h1");
@@ -259,7 +242,11 @@ class Chart{
         // this.graph.width = parseInt(getComputedStyle(this.div).width);
 
         // this.graph.width = innerWidth - parseInt(getComputedStyle(this.div).marginRight);
-        this.graph.height = 500;
+        if (detectMobile()){
+            this.graph.height = 700;
+        } else {
+            this.graph.height = 400;
+        }
 
         // canvas for LINES NUMBERS DATES
         this.info = document.createElement("canvas");
@@ -378,12 +365,12 @@ class Chart{
             let addMovementListener = (moveFunction) => {
                 window.addEventListener("touchmove", moveFunction);
 
-                window.addEventListener("touchend", function (){
+                window.addEventListener("touchend", () =>{
                     window.removeEventListener("touchmove", moveFunction);
                 });
             };
 
-            this.slider.addEventListener("touchstart", function(){
+            this.slider.addEventListener("touchstart", () =>{
                 this.previousTouchPosition = window.event.touches[0].clientX;
                 let sliderRect = this.slider.getBoundingClientRect();
 
@@ -482,48 +469,33 @@ class Chart{
     }
 
 
-    calculateCutout () {
+    calculateCutout () { 
         // TODO gotta calc the columns and the offset
         // the offset is later used by drawgraph to calculate Translate
         let lPoint = parseInt(getComputedStyle(this.slider).left);
         let rPoint = lPoint + parseInt(getComputedStyle(this.slider).width);
         let mColumnWidth = this.minimap.width / this.x.length;
-        this.numOfVisibleGraphColumns = (rPoint - lPoint) / mColumnWidth;
-        
-        this.sliderColumnStart = Math.floor(lPoint / mColumnWidth);
-        this.sliderColumnEnd = Math.ceil(rPoint / mColumnWidth);
 
-        // offset: difference between the position of slider coords and closest column coords
-        // gotta convert that to the graph offset in drawGraph
-        this.sliderOffset = lPoint - this.sliderColumnStart * mColumnWidth;
-
+        let sliderColumnStart = Math.floor(lPoint / mColumnWidth);
+        let sliderColumnEnd = Math.ceil(rPoint / mColumnWidth);
+        let sliderOffset = lPoint - sliderColumnStart * mColumnWidth;
+        let numOfVisibleGraphColumns = (rPoint - lPoint) / mColumnWidth;
 
         // TODO round this float probably
+        // offset: difference between the position of slider coords and closest column coords
+        // gotta convert that to the graph offset in drawGraph
+
+
+        let cutout = {
+            sliderColumnStart: sliderColumnStart,
+            sliderColumnEnd: sliderColumnEnd,
+            sliderOffset: sliderOffset,
+            numOfVisibleGraphColumns: numOfVisibleGraphColumns
+        };
+        return cutout;
 
 
     }
-    configureGraphParams(){
-        let xStart = this.sliderColumnStart;
-        let xEnd = this.sliderColumnEnd;
-
-        // TODO depending on the type - call appropriate func ceiling func
-        let ceiling = this.findPrettyMax(xStart, xEnd);
-        // the offset of graph should be much bigger
-        // accounting for the fact that graph is partial and minimap if full
-        // divide by number of cutout columns and multiply by total number
-        let xOffset = this.sliderOffset / this.minimap.width * this.graph.width;
-        let numOfCutColumns = this.sliderColumnEnd - this.sliderColumnStart;
-        xOffset = xOffset / numOfCutColumns * this.x.length;
-
-        // checking if i need the animation
-        this.graphDrawingParameters.xStart = xStart;
-        this.graphDrawingParameters.xEnd = xEnd;
-        this.graphDrawingParameters.ceiling = ceiling;
-        this.graphDrawingParameters.xOffset = xOffset;
-        this.graphDrawingParameters.columnsOnCanvas = this.numOfVisibleGraphColumns;
-
-    }
-
 
     moveSlider(event, movement){ // WRAPPER
         event.preventDefault();
@@ -664,49 +636,104 @@ class Chart{
 
 
     drawGraphOnCheck(){
-        this.configureGraphParams();
         this.drawGraph();
     }
     drawGraphOnMovement(){
-        this.calculateCutout();
-        this.configureGraphParams();
-        this.drawDates(this.graphDrawingParameters);
+        this.drawDates(this.configureParametersForGraph());
         this.drawGraph();
 
 
     }
     
+    configureParametersForGraph(){
+        let parameters = new DrawingParameters();
+        
+        let cutout = this.calculateCutout();
+        let xStart = cutout.sliderColumnStart;
+        let xEnd = cutout.sliderColumnEnd;
+        // let initialGraphCeiling = this.findPrettyMax(0, this.x.length); //TODO change to cutout size
+        let ceiling = this.findPrettyMax(xStart, xEnd);
+
+        // configuring the offset
+        let xOffset = cutout.sliderOffset / this.minimap.width * this.graph.width;
+        let numOfCutColumns = cutout.sliderColumnEnd - cutout.sliderColumnStart;
+        xOffset = xOffset / numOfCutColumns * this.x.length;
+
+        parameters.ctx = this.gCtx;
+        parameters.xArray = this.x;
+        parameters.yArray = null;
+        parameters.color = null;
+        parameters.yStartPoint = 0;
+        parameters.yEndPoint = this.graph.height - DATESPACE;
+        parameters.xStartPoint = 0;
+        parameters.xEndPoint = this.graph.width;
+        parameters.xStart = xStart;
+        parameters.xEnd = xEnd;
+        parameters.ceiling = ceiling;
+        this.oldCeiling = ceiling; // TODO
+        // parameters.oldCeiling = ceiling; // TODO make this global
+        parameters.xOffset = xOffset;
+        parameters.columnsOnCanvas = cutout.numOfVisibleGraphColumns;
+
+        return parameters;
+    }
     drawGraph(){
+        let parameters = this.configureParametersForGraph();
+
         this.gCtx.clearRect(0, 0, this.graph.width, this.graph.height);
-        // this.calculateCutout();
-        if (this.graphDrawingParameters.oldCeiling != this.graphDrawingParameters.ceiling) { // TODO consider code optimization with drawMinimap
-            this.animation(this.graphDrawingParameters);
-            this.graphDrawingParameters.oldCeiling = this.graphDrawingParameters.ceiling;
+        if (parameters.oldCeiling != parameters.ceiling) { // TODO consider code optimization with drawMinimap
+            if (!this.animationActive){
+
+                this.animationActive = true;
+                this.animation(parameters);
+
+            }
+            // parameters.oldCeiling = parameters.ceiling;
         } else {
-            this.drawWrapper(this.graphDrawingParameters);
+            this.drawLinesForAllActiveArrays(parameters);
         }
+    }
+    configureParametersForMinimap(){
+        let parameters = new DrawingParameters();
+        let initialMinimapCeiling = this.findPrettyMax(0, this.x.length);
+        parameters.ctx = this.mCtx;
+        parameters.xArray = this.x;
+        parameters.yArray = null;
+        parameters.color = null;
+        parameters.yStartPoint = 0;
+        parameters.yEndPoint = this.minimap.height;
+        parameters.xStartPoint = 0;
+        parameters.xEndPoint = this.minimap.width;
+        parameters.xStart = 0;
+        parameters.xEnd = this.x.length - 1;
+        parameters.ceiling = initialMinimapCeiling;
+        parameters.oldCeiling = initialMinimapCeiling;
+        parameters.xOffset = null;
+        parameters.columnsOnCanvas = this.x.length;
+        return parameters;
     }
     drawMinimap(){ // PARENTS: createButtons, launchChart, 
         // TODO optimize ceiling calculations so i don't do them twice with drawGraph
+        let parameters = this.configureParametersForMinimap();
+
         this.mCtx.clearRect(0, 0, this.minimap.width, this.minimap.height);
 
         let ceiling = this.findPrettyMax(0, this.x.length); //recal ceiling
-        this.minimapDrawingParameters.ceiling = ceiling;
-        this.minimapDrawingParameters.xOffset = 0; // mini doesn't need an offset
+        parameters.ceiling = ceiling;
+        parameters.xOffset = 0; // mini doesn't need an offset
 
         // checking if i need to do an animation
-        if (this.minimapDrawingParameters.oldCeiling != ceiling) {
+        if (parameters.oldCeiling != ceiling) {
 
-            this.animation(this.minimapDrawingParameters);
-            this.minimapDrawingParameters.oldCeiling  = ceiling;
+            this.animation(parameters);
+            parameters.oldCeiling  = ceiling;
         } else {
-            this.drawWrapper(this.minimapDrawingParameters);
+            this.drawLinesForAllActiveArrays(parameters);
         }
 
     }
 
-
-    drawWrapper(parameters){
+    drawLinesForAllActiveArrays(parameters){
         //takes parameters from drawGraph or drawMinimap and paints all the active lines and stuff
         for (let i=0; i < this.lines.length; i++){
             if (this.lines[i].isActive) {
@@ -718,11 +745,14 @@ class Chart{
         }
     }
     drawLine({ctx, xArray, yArray, color, yStartPoint, yEndPoint, xStartPoint, xEndPoint,
-              xStart, xEnd, ceiling, oldCeiling, xOffset, columnsOnCanvas}) {
+              xStart, xEnd, ceiling, oldCeiling, xOffset, columnsOnCanvas, drawingCeiling}) {
         let areaHeight = yEndPoint - yStartPoint;
         let areaWidth = xEndPoint - xStartPoint;
 
         // let cutoutWidth = this.cutoutWidth / this.minimap.width * this.graph.width;
+        if (drawingCeiling){
+            ceiling = drawingCeiling; //TODO TEMP
+        }
 
         // width for canvas and the columns which are drawn off the canvas
         // let visibleColumnWidth = areaWidth / columnsOnCanvas; 
@@ -749,38 +779,80 @@ class Chart{
         ctx.stroke();
 
     }
-    animation(parameters){
+    animation(parameters){ 
         // draws lines with given parameters and each time adjusts the ceiling
         // old ceiling
+        console.log("DRAWING");
         // RM extra code
-        let numOfFrames = 30; //TODO TEMP
-        let ceilRelationship = (1 / parameters.ceiling) * parameters.oldCeiling;
-        let difference = parameters.ceiling - parameters.oldCeiling;
-        let distributedDifference = difference / numOfFrames;
 
+
+        // find a rel instead
+
+        let ceilRelationship;
+        let relationship;
+        let distributedRelationship;
+        let relationshipDifferece;
+
+
+        let currentOldCeiling = parameters.oldCeiling;
+        let currentFutureCeiling = parameters.ceiling;
+        let currentNumOfFrames = NUMOFFRAMES;
+        let calculateVariables = () => {
+
+            relationship = currentOldCeiling / currentFutureCeiling;
+            relationshipDifferece = 1 - relationship;
+            distributedRelationship = relationshipDifferece / currentNumOfFrames;
+        };
         
-        let currentCeiling = parameters.oldCeiling + distributedDifference;
+        calculateVariables();
 
-        let counter = 0;
+        // stop the animation and launch a new one
+        // after the current animation is over - check if slider ceiling is diff with graph ceiling
+        let currentFrame = 1;
         let drawAnimation = () => {
-            if (counter < numOfFrames) {
+            
+            if (currentFrame <= NUMOFFRAMES) {
+
                 requestAnimationFrame(drawAnimation);
                 parameters.ctx.clearRect(0, 0, parameters.xEndPoint, parameters.yEndPoint);
-                parameters.ceiling = currentCeiling;
-                currentCeiling += distributedDifference;
-                this.drawWrapper(parameters);
-                this.drawNumbers(parameters);
-                counter += 1;
+
+                parameters.drawingCeiling = currentOldCeiling * (1 +distributedRelationship * currentFrame);
+
+                this.drawLinesForAllActiveArrays(parameters);
+
+                currentFrame += 1;
+                // TODO if the desired ceiling is achieved or surpassed - set frame to end
+                // let newFutureCeiling = parameters.ceiling;
+                // let currentCeiling = parameters.drawingCeiling;
+                // //currentFutureCeiling doesn't seem to be needed
+                // if(currentCeiling < newFutureCeiling){
+                //     currentFrame = NUMOFFRAMES;
+                //     console.log("We've hit the new Future ceilin, exiting prematurely");
+                // }
+            } else {
+                
+                this.animationActive = false;
+                // this.drawGraph();
+
+                // let round = (num) => {
+                //     return Math.round(num / 1) * 1;
+                // };
+                // if (round(parameters.drawingCeiling) != round(parameters.ceiling)){
+                    parameters.oldCeiling = parameters.drawingCeiling;
+                //     this.animation(parameters);
+                // }
+
             }
         };
-        requestAnimationFrame(drawAnimation);
+            requestAnimationFrame(drawAnimation);
+
     }
 
 
 
 
 
-    drawHorizontalLines({ctx}, rowHeight,){
+    drawHorizontalLines(rowHeight,){
         // TODO i prolly don't need the parameters object here
 	      let drawLines = () =>{
             let x = 0;
@@ -841,14 +913,23 @@ class Chart{
             }
         } 
     }
-    drawNumbers(parameters) {
+    drawNumbers(ceiling) {
 	      // drawing the numbers on the left side
 	      let y = this.graph.height - DATESPACE;
+
+        // old ceil is used to calc nums
+        // new to calc position
+
         this.iCtx.clearRect(0, 0, this.graph.width, y);
 	      let curNum = 0;
-        let rowStep = parameters.ceiling / NUMOFROWS;
+        let rowStep = ceiling / NUMOFROWS;
         let rowHeight = (this.graph.height - DATESPACE) / NUMOFROWS;
         // TODO round floats
+        // let numsPerPixel = areaHeight / NUMOFROWS;
+        // get the difference between previous and new ceiling
+        // use that difference to change LOCAL nums per pixel
+
+
 
 	      this.iCtx.font = "14px Helvetica"; //font for the numbers
 	      this.iCtx.fillStyle = "grey";
@@ -857,27 +938,34 @@ class Chart{
 		        curNum += rowStep;
 		        y -= rowHeight;
 	      }
-        this.drawHorizontalLines(parameters, rowHeight);
+        this.drawHorizontalLines(rowHeight);
 
     }
 
 
     drawPopup({clientX}){
         // gets the current mouse position and prints the appropriate array values
-        let cutoutSize = this.sliderColumnEnd - this.sliderColumnStart;
-        let columnWidth = this.graph.width / this.numOfVisibleGraphColumns;
+        let parameters = this.configureParametersForGraph();
+        let cutout = this.calculateCutout();
+
+        let cutoutSize = cutout.sliderColumnEnd - cutout.sliderColumnStart;
+        let columnWidth = this.graph.width / cutout.numOfVisibleGraphColumns;
         let currentGraphColumn = Math.round((clientX - this.graph.getBoundingClientRect().left)  / columnWidth);
 
+        let ceiling = parameters.ceiling;
 
-        let currentArrayColumn = this.sliderColumnStart + currentGraphColumn;
 
-        let conversionQuotient = (this.graph.height - DATESPACE) / this.graphDrawingParameters.oldCeiling;
-        let convertedVal;
+        let currentArrayColumn = cutout.sliderColumnStart + currentGraphColumn;
+
+        // TODO [#A] where do i get the old ceiling for the popup?
+        let conversionQuotient = (this.graph.height - DATESPACE) / ceiling;
+
+        let convertedYValue;
         let date;
 
         // TODO optimize this code for offset
-        let xOffset = this.sliderOffset / this.minimap.width * this.graph.width;
-        let numOfCutColumns = this.sliderColumnEnd - this.sliderColumnStart;
+        let xOffset = cutout.sliderOffset / this.minimap.width * this.graph.width;
+        let numOfCutColumns = cutout.sliderColumnEnd - cutout.sliderColumnStart;
         xOffset = xOffset / numOfCutColumns * this.x.length;
 
         let currentXPos = currentGraphColumn * columnWidth - xOffset;
@@ -924,14 +1012,14 @@ class Chart{
             let style;
             for (let i in this.lines){
                 if (this.lines[i].isActive){
-                    convertedVal =
+                    convertedYValue =
                         this.graph.height - this.lines[i]["array"][currentArrayColumn] *
                         conversionQuotient - DATESPACE;
 
 
 
                     this.pCtx.beginPath();
-                    this.pCtx.arc(currentXPos, convertedVal,
+                    this.pCtx.arc(currentXPos, convertedYValue,
                                   10, 0, Math.PI * 2);
                     this.pCtx.fillStyle = getComputedStyle(document.body).backgroundColor;
                     this.pCtx.strokeStyle = this.lines[i]["color"];
@@ -1073,6 +1161,24 @@ function putThemeButton(){
     themeButton.addEventListener("click", switchTheme);
 }
 
+
+
+function detectMobile() { 
+    if( navigator.userAgent.match(/Android/i)
+        || navigator.userAgent.match(/webOS/i)
+        || navigator.userAgent.match(/iPhone/i)
+        || navigator.userAgent.match(/iPad/i)
+        || navigator.userAgent.match(/iPod/i)
+        || navigator.userAgent.match(/BlackBerry/i)
+        || navigator.userAgent.match(/Windows Phone/i)
+      ){
+        return true;
+    }
+    else {
+        return false;
+    }
+}
+
 let throttled;
 function onResize(){
     // reset canvases (reconfigure their sizes) and redraw
@@ -1081,36 +1187,11 @@ function onResize(){
         let chart;
         for (let i = 0; i < arrayOfCharts.length; i++){
             chart = arrayOfCharts[i];
-            let oldChange = () => {
-                chart.graph.width = innerWidth - parseInt(getComputedStyle(chart.div).marginRight);
-                chart.graph.height = innerHeight / 2;
-                chart.minimap.width = innerWidth - (
-                    parseInt(getComputedStyle(chart.miniDiv).marginLeft) +
-                        parseInt(getComputedStyle(chart.div).marginRight));
-                // chart.minimap.height = 75;
-
-
-                chart.lSpace.style.left = 0 + "px";
-                chart.lSpace.style.width = 200 + "px";
-
-                chart.slider.style.left = parseInt(chart.lSpace.style.left) +
-                    parseInt(chart.lSpace.style.width) + "px";
-                chart.slider.style.width = innerWidth / 3 + "px";
-
-                chart.rSpace.style.left =
-                    parseInt(chart.slider.style.left) +
-                    parseInt(chart.slider.style.width) + 12 + "px";
-
-                chart.rSpace.style.width = chart.minimap.width -
-                    parseInt(chart.rSpace.style.left) + "px";
-
-                // chart.drawMinimap();
-                // TODO resize the info canvas also
-            };
             // adjust and redraw canvases
             // adjust slider
             // chart.graph.style.width = innerWidth / 2 + "px";//- parseInt(getComputedStyle(chart.div).marginRight);
         }
+        // switchTheme();
         throttled = true;
         setTimeout(function() {
             throttled = false;
@@ -1149,7 +1230,10 @@ class barChart extends Chart{
         super(data, title);
     }
 
-    drawBars({ctx, yArray, xStart, xEnd, color, yEndPoint, yStartPoint, barOffset=0}){
+    
+
+
+    drawBars({ctx, yArray, xStart, xEnd, color, yEndPoint, yStartPoint, barOffset=0, arrayOfOffsets}){
         // let ceiling = Math.max(...yArray.slice(xStart, xEnd)); // TODO TEMP reuse old code and find pretty nums
         // TODO ceiling here is probably redundant, because i can use the one from params
         let ceiling = this.findPrettyMax(xStart, xEnd);
@@ -1162,8 +1246,10 @@ class barChart extends Chart{
 
         let numsPerPixel = areaHeight / ceiling; // TODO won't work with stacked bars
 
+
+        let currentOffset = arrayOfOffsets[0] * numsPerPixel; // for stacked bars
         let currentX = 0;
-        let currentY = areaHeight - yArray[0] * numsPerPixel - barOffset;
+        let currentY = areaHeight - yArray[0] * numsPerPixel - currentOffset;
 
         // TODO that's the problem, it should return for EVERY column, now it sends only the last one
         // switch to calculating offset in the wrapper (sum of all previous bars)
@@ -1175,14 +1261,14 @@ class barChart extends Chart{
             fillDistance = this.graph.height - DATESPACE - currentY; // on the Y axis
             ctx.fillRect(currentX, currentY, fillWidth, fillDistance);
 
-            currentY = areaHeight - yArray[x] * numsPerPixel;
+            currentOffset = arrayOfOffsets[x] * numsPerPixel; //TEMP
+            currentY = areaHeight - yArray[x] * numsPerPixel - currentOffset;
             currentX += columnWidth;
             // TODO insert spaces between columns
 
         }
         // return the calculated stuff for
         // previous bar height (fill distance)
-        return fillDistance; // for stacked bars to find the starting point of next bar
 
     }
 }
@@ -1217,7 +1303,25 @@ class stackedBarChart extends barChart{
         // let slicedArray = array.slice(xStart, xEnd);
         return myMath.findPrettyRoundNum(Math.max(...array));
     }
-    drawWrapper(parameters){ // PARENTS: drawMinimap, drawGraph
+    
+
+    drawGraph(){
+        // TODO clearing the canvas should prolly be done in the wrapper using the param ctx
+        let parameters = this.configureParametersForGraph();
+
+        this.gCtx.clearRect(0, 0, this.graph.width, this.graph.height); 
+        this.drawStackedBars(parameters);
+    }
+    drawMinimap(){
+        let parameters = this.configureParametersForMinimap();
+
+        this.mCtx.clearRect(0, 0, this.minimap.width, this.minimap.height);
+
+        let ceiling = this.findPrettyMax(0, this.x.length); //recal ceiling
+        parameters.ceiling = ceiling;
+        this.drawStackedBars(parameters);
+    }
+    drawStackedBars(parameters){ // PARENTS: drawMinimap, drawGraph
         // iterate through each bar and draw one by one
         // use the parameters
         // set teh y array in params and the color
@@ -1225,28 +1329,33 @@ class stackedBarChart extends barChart{
         let color;
         let previousBarHeight;
         let currentBarOffset = 0;
+
+        // array, starts at all 0s
+
+        parameters.arrayOfOffsets = []; // to calc the position relative to the prev item in stack
+        for (let x = 0; x < this.x.length; x++){
+            parameters.arrayOfOffsets.push(0);
+        }
         for (let b = 0; b < this.bars.length; b++){
             parameters.color = this.bars[b].color;
+            // console.log("Current color:", parameters.color);
+
             parameters.yArray = this.bars[b].array;
-            parameters.color = this.bars[b].color;
-            parameters.yArray = this.bars[b].array;
-            // HOW TO CALC X EACH ITER
-            // subtract each step the calced bar height
-            // currentY = this.graph.height - DATESPACE - currentBarHeight;
-            // parameters.xStart = this.y;
+            function sumArrays(array1, array2){ // move it outside
+                // let newArray = [];
+                for (let i = 0; i < array1.length; i++){
+                    // newArray.push(array1[i] + array2[i]);
+                    array1[i] += array2[i];
+                }
+            }
+            sumArrays(parameters.arrayOfOffsets, this.bars[b].array);
+            // console.log("offsets:", parameters.arrayOfOffsets);
             
-            previousBarHeight = this.drawBars(parameters);
-            // currentY = currentY - previousBarHeight;
-            parameters.barOffset += previousBarHeight;
-            // send the bar offset instead of Y, which will be the combined previous Widths
-            // this.drawBars(parameters);
+            
+            this.drawBars(parameters);
         }
     }
-    drawGraph(){
-        // TODO clearing the canvas should prolly be done in the wrapper using the param ctx
-        this.gCtx.clearRect(0, 0, this.graph.width, this.graph.height); 
-        this.drawWrapper(this.graphDrawingParameters);
-    }
+
 }
 
 class singleBarChart extends barChart{
@@ -1274,28 +1383,35 @@ class singleBarChart extends barChart{
         return myMath.findPrettyRoundNum(Math.max(...slicedArray));
     }
 
-    // drawGraphOnMovement(){
-    //     this.calculateCutout();
-    //     this.configureGraphParams();
-    //     this.drawDates(this.graphDrawingParameters);
-    //     this.drawGraph();
-    // }
     drawGraph(){
         // this.drawBars(this.y, 300, this.x.length, this.color);
+        let parameters = this.configureParametersForGraph();
+
         this.gCtx.clearRect(0, 0, this.graph.width, this.graph.height);
-        this.drawWrapper(this.graphDrawingParameters);
-    }
-
-    drawWrapper(parameters){ // gets called from drawMinimap and drawGraph
-        //TODO prolly a dummy func here for compatibility with other charts
-        // clean this up later
-
-        // TODO i can probably move these to initial parameter config with a wrapper or something
-        parameters.yArray = this.y;
-        parameters.color = this.color;
         this.drawBars(parameters);
     }
+    drawMinimap(){
+        let parameters = this.configureParametersForMinimap();
 
+        this.mCtx.clearRect(0, 0, this.minimap.width, this.minimap.height);
+
+        let ceiling = this.findPrettyMax(0, this.x.length); //recal ceiling
+        parameters.ceiling = ceiling;
+        this.drawBars(parameters);
+    }
+    drawBars(parameters){
+        // wrapper for drawBars at barChart, creates an array of offsets of 0 for compatibility with stacked charts
+
+        parameters.yArray = this.y;
+        parameters.color = this.color;
+
+        let arrayOfOffsets = [];
+        for (let x = 0; x < this.x.length; x++){
+            arrayOfOffsets.push(0);
+        }
+        parameters.arrayOfOffsets = arrayOfOffsets;
+        super.drawBars(parameters);
+    }
 }
 
 
@@ -1306,10 +1422,14 @@ class areaChart extends Chart{
         super(data, title);
     }
     drawGraph(){
+        let parameters = this.configureParametersForGraph();
+
         this.gCtx.clearRect(0, 0, this.graph.width, this.graph.height);
-        this.drawWrapper(this.graphDrawingParameters);
+        // this.drawWrapper(parameters);
+        this.drawGraphWithAnArea(parameters);
+        this.drawGraphWithAPie(parameters);
     }
-    drawWrapper(parameters){
+    drawGraphWithAnArea(parameters){
         // polyline is an array of tuples
         // the x position is the same throughout 
 
@@ -1323,11 +1443,7 @@ class areaChart extends Chart{
         parameters.color = this.lines[0].color;
         parameters.xStart = 0;
         parameters.xEnd = 20;
-        // this.drawArea(parameters);
-        // this.drawPie(parameters);
 
-        // loop through all the arrays and for each X - find
-        // sum them up and then divide the sum into each array and add that to the corresponding % array
         let percentLines = []; //array of arrays TODO really huge floats
         let arrayOfOffsets = [];
 
@@ -1352,9 +1468,13 @@ class areaChart extends Chart{
         // for every Y - send that Y+corresponding Offset, then add to that offset
         for (let y = 0; y < percentLines.length; y++){
             
-            // this.drawArea(arrayOfOffsets, percentLines[y], this.colors[y]);
+            this.drawArea(arrayOfOffsets, percentLines[y], this.lines[y].color);
         }
+        
+    }
+    drawGraphWithAPie(parameters){
 
+        // TODO gotta move some shit from drawing with an area
         // sum up each array and find a relatinship and convert that to a percentarr
         let sum;
         let arrayOfSums = [];
