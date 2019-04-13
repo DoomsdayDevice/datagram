@@ -33,24 +33,6 @@ const SETTINGS = {
 };
 
 const myMath = {
-    // findPrettyMax: function (chart, xStart, xEnd){
-    //     if(chart.constructor.name == "Chart" || chart.constructor.name == "lineChart"){
-    //         ceiling = myMath.findPrettyMaxForLineChart(chart.lines, xStart, xEnd);
-    //     } else if(chart.constructor.name == "barChart") {
-    //         ceiling = myMath.findPrettyMaxForBarChart(chart.y, xStart, xEnd);
-    //     } else if(chart.constructor.name == "stackedBarChart") {
-    //         // uses the sum of all arrays to find initial max
-    //         ceiling = myMath.findPrettyMaxForBarChart(chart.getSummedArray(), xStart, xEnd);
-    //     } else if(chart.constructor.name == "line2YChart") {
-    //         ceiling = myMath.findPrettyMaxForLineChart(chart.lines, xStart, xEnd);
-    //     }
-        
-    //     return ceiling;
-    // },
-    // findPrettyMaxForLineChart: function (){
-    // },
-    // findPrettyMaxForBarChart: function(array, xStart, xEnd){
-    // },
     findPrettyRoundNum: function(max){
         max *= 1.1; // make it a bit higher so there's some space above
         let currentNumber = NUMOFROWS;
@@ -180,9 +162,7 @@ class Chart{
 
         this.drawGraphOnMovement();
         this.drawMinimap();
-        // this.drawNumbers(this.configureParametersForGraph());
         this.drawNumbers(this.configureParametersForGraph().ceiling, 1, NUMOFFRAMES);
-        // this.drawHorizontalLine();
         
     }
     destructureData(data){
@@ -1282,21 +1262,32 @@ class stackedBarChart extends barChart{
     getSummedArray(xStart=0, xEnd=this.bars[0].length){
         // sums all array into a single array to find the ceiling
         // TODO change for all the active arrays
-        let summedArray = [...this.bars[0].array.slice(xStart, xEnd+1)];
+        // create an empty arrays
+        let summedArray = [];
+        for (let x = 0; x < this.x.length; x++){
+            summedArray.push(0);
+        }
+
+        // use that array summing functions
+        // let summedArray = [...this.bars[0].array.slice(xStart, xEnd+1)];
         let currentArray;
-        for (let i= 1; i < this.bars.length; i++){
-            currentArray = this.bars[i].array.slice(xStart, xEnd+1);
-            for (let j = 0; j < currentArray.length; j++){
-                summedArray[j] += currentArray[j];
+        for (let i= 0; i < this.bars.length; i++){
+
+            if (this.bars[i].isActive){
+                myMath.addSecondArrayToFirst(summedArray, this.bars[i].array);
+
+                // currentArray = this.bars[i].array.slice(xStart, xEnd+1);
+                // for (let j = xStart; j < xEnd + 1; j++){
+                //     summedArray[j] += currentArray[j];
+                    
+                // }
             }
         }
         // send the array to find ceil
-        // let ceiling = this.findPrettyMax(summedArray, 0, summedArray.length);
-        return summedArray;
+        return summedArray.slice(xStart, xEnd+1);
     }
     findPrettyMax(xStart, xEnd){
         let array = this.getSummedArray(xStart, xEnd);
-        // let slicedArray = array.slice(xStart, xEnd);
         return myMath.findPrettyRoundNum(Math.max(...array));
     }
     
@@ -1671,11 +1662,11 @@ function importDays(chartNumber, whereToAppend){
     }
 }
 // OLD CHARTS
-initiateCharts();
+// initiateCharts();
 
 // initiate each chart; also appends each to arrayOfNewCharts
 for (let c = 1; c <= 5; c++) {
-    // initiateNewCharts(c);
+    initiateNewCharts(c);
 }
 
 
