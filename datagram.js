@@ -152,7 +152,6 @@ class DrawingParameters{
 class Chart{
     constructor(data, title){
         // global vars
-        this.currentColumnCursor = null; // used to track which part of the info canv to redraw
         this.previousTouchPosition = null; // for tracking finger movement
         this.animationActive = false; // one animation at a time
         this.oldCeiling = 0;
@@ -1024,58 +1023,15 @@ class Chart{
         xOffset = xOffset / numOfCutColumns * this.x.length;
 
         let currentXPos = currentGraphColumn * columnWidth - xOffset;
-        //check if i have shifted columns to know if i should redraw
-        // let start = 0;
-        // let end = 0;
-        // partial redraw
-        /*if (this.currentColumnCursor != currentGraphColumn && this.isAnyArrayActive()){
-            // change is negate or positive; +1
-            let clearFactor; // proportional to the size of the columns
-            // the bigger the columnsize - the smaller the number
-            clearFactor = Math.round(6 / ((this.columnWidth/80)*10));
-            if (clearFactor < 1){
-                clearFactor = 1;
-            }
+        
+        this.drawGraphPopup(currentArrayColumn, currentXPos, convertedYValue, conversionQuotient);
 
-            if (currentGraphColumn > this.currentColumnCursor){// RIGHT
-                start = (this.currentColumnCursor - clearFactor) * columnWidth;
-                end = (currentGraphColumn + clearFactor) * columnWidth;
-
-
-                this.partialStartCol = this.currentColumnCursor - clearFactor;
-                this.partialStartColPrevious = this.partialStartCol;
-                this.partialEndCol = currentGraphColumn + clearFactor;
-                this.partialStartPx = start;
-                this.partialStartPxPrevious = this.partialStartPx;
-                this.partialEndPx = end;
-
-            } else { // LEFT
-                end = (this.currentColumnCursor + clearFactor) * this.columnWidth;
-                start = (currentGraphColumn - clearFactor) * this.columnWidth;
-
-                this.partialEndCol = this.currentColumnCursor + clearFactor;
-                this.partialStartCol = currentGraphColumn - clearFactor;
-                this.partialStartPx = start;
-                this.partialEndPx = end;
-
-            }
-
-            this.currentColumnCursor = currentGraphColumn;
-            // TODO partial redraw for tooltip and circles
-            this.iCtx.clearRect(0, 0, this.info.width, this.info.height);
-            displayTooltip();
-            drawHorizontalLine();
-            drawCircles();
-        } */
-
-        this.currentColumnCursor = currentGraphColumn;
-        // TODO clear only what's necessary
+    }
+    drawGraphPopup(currentArrayColumn, currentXPos, convertedYValue, conversionQuotient){
         this.pCtx.clearRect(0, 0, this.popup.width, this.popup.height);
         this.displayTooltip(currentArrayColumn, currentXPos);
         this.drawVerticalLine(currentXPos);
         this.drawCircles(convertedYValue, conversionQuotient, currentXPos, currentArrayColumn);
-        // drawNumbers
-
     }
     isAnyArrayActive(){
         for (let i in this.lines){
@@ -1208,7 +1164,7 @@ class barChart extends Chart{
     
 
 
-    drawBars({ctx, yArray, xStart, xEnd, color, yEndPoint, yStartPoint, barOffset=0, arrayOfOffsets, ceiling, xOffset, columnsOnCanvas, xStartPoint, xEndPoint}){
+    drawBars({ctx, yArray, xStart, xEnd, color, yEndPoint, yStartPoint, barOffset=0, arrayOfOffsets, ceiling, xOffset, columnsOnCanvas, xStartPoint, xEndPoint, selectedColumn = null}){
         // xStart = 0;
         // xEnd = 10;
         let areaHeight = yEndPoint - yStartPoint;
@@ -1232,6 +1188,14 @@ class barChart extends Chart{
         // num of col
         let fillWidth = areaWidth / columnsOnCanvas - 1; // on the X axis
 
+
+        // check if there's selected column specified; if it's null = opacity to 1 else - transparent; then check inside the loop for the chosen one
+        if (selectedColumn !== null){
+            ctx.globalAlpha = 0.3;
+        } else {
+            ctx.globalAlpha = 1;
+        }
+
         ctx.fillStyle = color;
         for (let x = xStart; x < xEnd + 1; x++) {
 
@@ -1242,7 +1206,13 @@ class barChart extends Chart{
 
             fillDistance = areaHeight - currentY - currentOffset; // on the Y axis
             fillWidth = areaWidth / columnsOnCanvas - 1; // on the X axis
-            ctx.fillRect(currentX - xOffset, currentY, fillWidth, fillDistance);
+            if (x == selectedColumn){
+                ctx.globalAlpha = 1;
+                ctx.fillRect(currentX - xOffset, currentY, fillWidth, fillDistance);
+                ctx.globalAlpha = 0.3;
+            } else {
+                ctx.fillRect(currentX - xOffset, currentY, fillWidth, fillDistance);
+            }
             // TODO insert spaces between columns
 
         }
@@ -1347,6 +1317,22 @@ class stackedBarChart extends barChart{
             }
         }
     }
+    drawGraphPopup(currentArrayColumn, currentXPos, convertedYValue, conversionQuotient){
+        // PARENT: drawPopup in Chart
+        this.displayTooltip(currentArrayColumn, currentXPos);
+
+        // making a column transparent
+        let parameters = this.configureParametersForGraph();
+        parameters.selectedColumn = currentArrayColumn;
+        this.gCtx.clearRect(0, 0, this.graph.width, this.graph.height);
+        this.drawStackedBars(parameters);
+    }
+    drawCanvasMask(ctx, currentXPos){
+        ctx.fillStyle = "grey";
+        ctx.globalAlpha = 0.3;
+        ctx.fillRect(0, 0, currentXPos, this.graph.height);
+        ctx.globalAlpha = 1;
+    }
 
 }
 
@@ -1426,6 +1412,16 @@ class singleBarChart extends barChart{
         parameters.arrayOfOffsets = arrayOfOffsets;
         super.drawBars(parameters);
     }
+    drawGraphPopup(currentArrayColumn, currentXPos, convertedYValue, conversionQuotient){
+        // PARENT: drawPopup in Chart
+        this.displayTooltip(currentArrayColumn, currentXPos);
+
+        // making a column transparent
+        let parameters = this.configureParametersForGraph();
+        parameters.selectedColumn = currentArrayColumn;
+        this.gCtx.clearRect(0, 0, this.graph.width, this.graph.height);
+        this.drawBars(parameters);
+    }
 }
 
 
@@ -1437,16 +1433,28 @@ class areaChart extends Chart{
     }
     drawGraph(){
         let parameters = this.configureParametersForGraph();
+        if (this.oldCeiling != parameters.ceiling) { // TODO consider code optimization with drawMinimap since it uses the same code
+            if (!this.animationActive){
 
-        this.gCtx.clearRect(0, 0, this.graph.width, this.graph.height);
-        // this.drawWrapper(parameters);
-        this.drawWithAnArea(parameters);
-        this.drawGraphWithAPie(parameters);
+                this.animationActive = true;
+                this.animation(parameters);
+
+                this.oldCeiling = parameters.ceiling; // NOTE that it will change before anim end
+            }
+        } else {
+            parameters.ctx.clearRect(0, 0, this.graph.width, this.graph.height);
+            this.drawWithAnArea(parameters);
+            this.drawGraphWithAPie(parameters);
+        }
     }
     drawMinimap(){
         let parameters = this.configureParametersForMinimap();
 
         this.mCtx.clearRect(0, 0, this.minimap.width, this.minimap.height);
+        this.drawWithAnArea(parameters);
+    }
+    animationFrame(parameters){
+        console.log("FRAMIN");
         this.drawWithAnArea(parameters);
     }
     drawWithAnArea(parameters){
