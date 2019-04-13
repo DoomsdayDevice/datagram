@@ -110,46 +110,25 @@ function initiateCharts(){
 
 }
 
-function drawAnimation(parameters, chart, currentOldCeiling, distributedRelationship, currentFrame){
+// function drawAnimation(parameters, chart, currentOldCeiling, distributedRelationship, currentFrame, currentFutureCeiling){
+function drawAnimation(parameters, chart, currentOldCeiling, distributedDifference, currentFrame, currentFutureCeiling){
     if (currentFrame <= NUMOFFRAMES) {
         parameters = chart.configureParametersForGraph();
 
         requestAnimationFrame(function(){
-            drawAnimation(parameters, chart, currentOldCeiling,
-                          distributedRelationship, currentFrame);
+            drawAnimation(parameters, chart, currentOldCeiling, distributedDifference,
+                          currentFrame, currentFutureCeiling);
         });
+        
         parameters.ctx.clearRect(0, 0, parameters.xEndPoint, parameters.yEndPoint);
-
-        parameters.ceiling = currentOldCeiling * (1 + distributedRelationship * currentFrame);
-
+        parameters.ceiling = currentOldCeiling + (distributedDifference * currentFrame);
         chart.drawLinesForAllActiveArrays(parameters);
 
+
         currentFrame += 1;
-
-        // TODO if the desired ceiling is achieved or surpassed - set frame to end
-        // let newFutureCeiling = parameters.ceiling;
-        // let currentCeiling = parameters.drawingCeiling;
-        // //currentFutureCeiling doesn't seem to be needed
-        // if(currentCeiling < newFutureCeiling){
-        //     currentFrame = NUMOFFRAMES;
-        //     console.log("We've hit the new Future ceilin, exiting prematurely");
-        // }
-
-
-        // draw text using old and new ceiling
-        chart.drawNumbers(currentOldCeiling, distributedRelationship, currentFrame);
-        // chart.drawNumbers(currentOldCeiling * (1+distributedRelationship * NUMOFFRAMES),
-        //                   distributedRelationship, currentFrame);
     } else {
         chart.animationActive = false;
-        // check if the chart's current ceiling same as local oldceiling
-        if (currentOldCeiling != chart.currentCeiling){
-            // console.log("THE CEIL HAS SHIFTED");
-            parameters.ceiling = chart.currentCeiling;
-            chart.animation(parameters);
-            // console.log("CURRENT OLD:", currentOldCeiling, "CURRENT:", chart.currentCeiling);
-            
-        }
+        chart.drawGraph();
 
     }
 };
@@ -718,7 +697,9 @@ class Chart{
         parameters.xStart = xStart;
         parameters.xEnd = xEnd;
         parameters.ceiling = ceiling;
-        // parameters.oldCeiling = ceiling; // TODO make this global
+        if (!this.oldCeiling){ // if we set it for the first time
+            this.oldCeiling = ceiling;
+        }
         this.currentCeiling = ceiling;
         parameters.xOffset = xOffset;
         parameters.columnsOnCanvas = cutout.numOfVisibleGraphColumns;
@@ -728,7 +709,8 @@ class Chart{
     drawGraph(){
         let parameters = this.configureParametersForGraph();
 
-        if (this.oldCeiling != parameters.ceiling) { // TODO consider code optimization with drawMinimap
+        // if the ceiling has shifted - launch anim
+        if (this.oldCeiling != parameters.ceiling) { // TODO consider code optimization with drawMinimap since it uses the same code
             if (!this.animationActive){
 
                 this.animationActive = true;
@@ -736,7 +718,6 @@ class Chart{
 
                 this.oldCeiling = parameters.ceiling; // NOTE that it will change before anim end
             }
-            // parameters.oldCeiling = parameters.ceiling;
         } else {
             this.gCtx.clearRect(0, 0, this.graph.width, this.graph.height);
             this.drawLinesForAllActiveArrays(parameters);
@@ -794,7 +775,7 @@ class Chart{
         }
     }
     drawLine({ctx, xArray, yArray, color, yStartPoint, yEndPoint, xStartPoint, xEndPoint,
-              xStart, xEnd, ceiling, oldCeiling, xOffset, columnsOnCanvas}) {
+              xStart, xEnd, ceiling, xOffset, columnsOnCanvas}) {
         let areaHeight = yEndPoint - yStartPoint;
         let areaWidth = xEndPoint - xStartPoint;
 
@@ -829,13 +810,6 @@ class Chart{
 
     }
     animation(parameters){ 
-        // draws lines with given parameters and each time adjusts the ceiling
-        // old ceiling
-        // RM extra code
-
-
-        // find a rel instead
-
         let relationship;
         let distributedRelationship;
         let relationshipDifferece;
@@ -844,21 +818,14 @@ class Chart{
         let currentOldCeiling = this.oldCeiling;
         let currentFutureCeiling = parameters.ceiling;
         let currentNumOfFrames = NUMOFFRAMES;
-        let calculateVariables = () => {
 
-            relationship = currentOldCeiling / currentFutureCeiling;
-            relationshipDifferece = 1 - relationship;
-            distributedRelationship = relationshipDifferece / currentNumOfFrames;
-        };
+        let difference = currentFutureCeiling - currentOldCeiling;
+        let distributedDifference = difference / NUMOFFRAMES;
         
-        calculateVariables();
-
-        // stop the animation and launch a new one
-        // after the current animation is over - check if slider ceiling is diff with graph ceiling
         let currentFrame = 1;
 
         let chart = this;
-        drawAnimation(parameters, chart, currentOldCeiling, distributedRelationship, currentFrame);
+        drawAnimation(parameters, chart, currentOldCeiling, distributedDifference, currentFrame, currentFutureCeiling);
 
     }
 
@@ -1517,35 +1484,37 @@ class areaChart extends Chart{
         }
 
     }
-    drawArea({ctx, arrayOfOffsets, yArray, color, xEndPoint, xStartPoint, ceiling, yEndPoint, yStartPoint, xStart, xEnd}){
+    drawArea({ctx, arrayOfOffsets, yArray, color, xEndPoint, xStartPoint, ceiling, yEndPoint, yStartPoint, xStart, xEnd, xOffset, columnsOnCanvas}){
         // takes an array of percentages of graph width 
         // use the given percentage and multiply areaHeight by it
         // let yEndPoint = this.graph.height - DATESPACE;
         // let yStartPoint = 0;
         let areaHeight = yEndPoint - yStartPoint;
+        let areaWidth = xEndPoint - xStartPoint;
 
         // let xStart = 0;
         // let xEnd = this.x.length;
         
-        let areaWidth = xEndPoint - xStartPoint;
-        let numOfColumns = xEnd - xStart;
-        let columnWidth = areaWidth / numOfColumns;
+        let columnWidth = areaWidth / columnsOnCanvas;
 
         let numsPerPixel = areaHeight / ceiling;
 
 
         let currentY;
-        let currentX = 0;
+        let currentX = xStartPoint - xOffset;
 
         ctx.beginPath();
 
         ctx.lineTo(0, areaHeight);
         for (let x = xStart; x < xEnd + 1; x++) {
             // draw a line and add the corresponding offset, then add that line's height to it
+            currentX = help.round((x - xStart) * columnWidth) - xOffset;
+            // currentY = yEndPoint - help.round( yArray[i] * numsPerPixel ) - yStartPoint;
+
             currentY = areaHeight - (arrayOfOffsets[x] + yArray[x] * numsPerPixel) * areaHeight;
             ctx.lineTo(currentX, currentY);
 
-            currentX += columnWidth;
+            // currentX += columnWidth;
 
 
 
@@ -1691,11 +1660,11 @@ function importDays(chartNumber, whereToAppend){
     }
 }
 // OLD CHARTS
-// initiateCharts();
+initiateCharts();
 
 // initiate each chart; also appends each to arrayOfNewCharts
 for (let c = 1; c <= 5; c++) {
-    initiateNewCharts(c);
+    // initiateNewCharts(c);
 }
 
 
