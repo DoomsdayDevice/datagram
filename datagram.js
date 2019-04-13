@@ -430,6 +430,7 @@ class Chart{
     createButtons(){
         
         let buttons = document.createElement("div");
+        this.buttons = buttons; // to refer to in singleBarChart to hide it
         this.div.appendChild(buttons);
         for(let i = 0; i < this.lines.length; i++){
             let label = document.createElement("label");
@@ -750,14 +751,47 @@ class Chart{
         }
 
     }
+    findLowestLocalAmongActives(){
+        let currentMin;
+        currentMin = Math.min();
+        // go through all the actives and find min
+        // 
+        for (let l = 0; l < this.lines.length; l++){
+            
+        }
+    }
+    cutArrayAtLocalMin(parameters){
+        
+        let areaHeight = parameters.yEndPoint - parameters.yStartPoint;
+        // lowest Local for all the active arrays at that slice
+        
+
+        let lowestLocal = Math.min(...parameters.yArray.slice(parameters.xStart, parameters.xEnd+1));
+        console.log("lowest local:", lowestLocal);
+        let localCeiling = parameters.ceiling - lowestLocal;
+        let localNumsPerPixel = areaHeight / localCeiling;
+
+        let cutArray = [];
+        console.log("yArr", parameters.yArray);
+        for (let x = 0; x < parameters.yArray.length; x++){
+            cutArray.push(parameters.yArray[x] - lowestLocal);
+
+        }
+        console.log("here", cutArray);
+        parameters.ceiling = localCeiling;
+        parameters.yArray = cutArray;
+
+    }
 
     drawLinesForAllActiveArrays(parameters){
         //takes parameters from drawGraph or drawMinimap and paints all the active lines and stuff
         for (let i=0; i < this.lines.length; i++){
             if (this.lines[i].isActive) {
 
+
                 parameters.color = this.lines[i]["color"];
                 parameters.yArray = this.lines[i]["array"];
+                // this.cutArrayAtLocalMin(parameters);
                 this.drawLine(parameters);
             }
         }
@@ -767,13 +801,9 @@ class Chart{
         let areaHeight = yEndPoint - yStartPoint;
         let areaWidth = xEndPoint - xStartPoint;
 
-        // let cutoutWidth = this.cutoutWidth / this.minimap.width * this.graph.width;
-        // if (drawingCeiling){
-        //     ceiling = drawingCeiling; //TODO TEMP
-        // }
+        // find lowest local val
+        // 
 
-        // width for canvas and the columns which are drawn off the canvas
-        // let visibleColumnWidth = areaWidth / columnsOnCanvas; 
 
         let columnWidth = areaWidth  / columnsOnCanvas; //used to calculate the number of columns on the screen
         let numsPerPixel = areaHeight / ceiling;
@@ -787,6 +817,7 @@ class Chart{
         for (let i = xStart; i < xEnd + 1; i++) {
             currentX = help.round((i - xStart) * columnWidth) - xOffset;
             currentY = yEndPoint - help.round( yArray[i] * numsPerPixel ) - yStartPoint;
+            // currentY = yEndPoint - help.round((yArray[i]-lowestLocal) * localNumsPerPixel) - yStartPoint;
 
             ctx.lineTo(currentX, currentY);
         }
@@ -938,7 +969,7 @@ class Chart{
             this.tooltip.style.backgroundColor = NIGHT.lead;
 
         }
-        this.tooltip.innerHTML = `<p style="color:${color};">${date}</p>`;
+        this.tooltip.innerHTML = `<p style="color:${color}; float: left;">${date}</p>`;
 
         // show the tooltip at needed location
 
@@ -955,12 +986,25 @@ class Chart{
             this.tooltip.style.left = currentXPos - (width + 75) + "px";
         }
 
-    };
-    drawCircles(convertedYValue, conversionQuotient, currentXPos, currentArrayColumn){
-        // drawing the circles for each line based on its configuration
+        // Displaying each item
         let number;
         let name;
         let style;
+        for (let i in this.lines){
+            if (this.lines[i].isActive){
+                // get the date
+                number = this.lines[i]["array"][currentArrayColumn];
+                name = this.lines[i]["checkboxName"];
+                style = `margin: 10px; color: ${this.lines[i]["color"]}`;
+                this.tooltip.innerHTML +=
+                    `<div style="${style}"><p class="name">${name}</p><p class="number">${number}</></div>`;
+
+            }
+        }
+
+    };
+    drawCircles(convertedYValue, conversionQuotient, currentXPos, currentArrayColumn){
+        // drawing the circles for each line based on its configuration
         for (let i in this.lines){
             if (this.lines[i].isActive){
                 convertedYValue =
@@ -978,12 +1022,6 @@ class Chart{
                 this.pCtx.stroke();
                 this.pCtx.fillStyle = "black";
 
-                // get the date
-                number = this.lines[i]["array"][currentArrayColumn];
-                name = this.lines[i]["checkboxName"];
-                style = `float:left; margin: 10px; color: ${this.lines[i]["color"]}`;
-                this.tooltip.innerHTML +=
-                    `<div style="${style}"><p>${number}</p><p>${name}</></div>`;
 
             }
         }
@@ -1152,6 +1190,53 @@ class line2YChart extends Chart{
     constructor(data){
         let title = "LINE 2Y + 2Y";
         super(data, title);
+
+        // VARS
+        this.firstOldCeiling = 0;
+        this.secondOldCeiling = 0;
+    }
+
+    
+    findPrettyMax(xStart, xEnd, array = []){
+        //find max THEN turn it into a pretty num
+        let slicedArray = array.slice(xStart, xEnd+1);
+
+        let currentMax = 0;
+        currentMax = Math.max(myMath.findMaxInArray(slicedArray), currentMax);
+        // turn into pretty
+        return myMath.findPrettyRoundNum(currentMax);
+
+    }
+    drawGraph(){
+        // configure parameters for first
+        // ceiling should be calculated for each array UNLIKE how Chart does it for all actives
+        let first = this.lines[0];
+        let second = this.lines[1];
+        let firstArray = this.lines[0].array;
+        let secondArray = this.lines[1].array;
+
+        let firstParams = this.configureParametersForGraph();
+        firstParams.ceiling = this.findPrettyMax(firstParams.xStart, firstParams.xEnd, firstArray);
+        // for second
+        let secondParams = this.configureParametersForGraph();
+        secondParams.ceiling = this.findPrettyMax(secondParams.xStart, secondParams.xEnd, secondArray);
+
+
+        firstParams.ctx.clearRect(0, 0, this.graph.width, this.graph.height);
+        if (first.isActive){
+            // this.drawLinesForAllActiveArrays(firstParams);
+            firstParams.color = first["color"];
+            firstParams.yArray = firstArray;
+            this.drawLine(firstParams);
+        }
+
+        if (second.isActive){
+            // this.drawLinesForAllActiveArrays(secondParams);
+            secondParams.color = second["color"];
+            secondParams.yArray = secondArray;
+            this.drawLine(secondParams);
+        }
+
     }
 }
 
@@ -1186,7 +1271,7 @@ class barChart extends Chart{
         // TODO why does it use graph? what about mini
         let fillDistance = areaHeight - DATESPACE - currentY - currentOffset; // on the Y axis
         // num of col
-        let fillWidth = areaWidth / columnsOnCanvas - 1; // on the X axis
+        let fillWidth = areaWidth / columnsOnCanvas - 0; // on the X axis
 
 
         // check if there's selected column specified; if it's null = opacity to 1 else - transparent; then check inside the loop for the chosen one
@@ -1205,7 +1290,7 @@ class barChart extends Chart{
             currentX = help.round((x - xStart) * columnWidth) - xOffset;
 
             fillDistance = areaHeight - currentY - currentOffset; // on the Y axis
-            fillWidth = areaWidth / columnsOnCanvas - 1; // on the X axis
+            fillWidth = areaWidth / columnsOnCanvas - 0; // on the X axis
             if (x == selectedColumn){
                 ctx.globalAlpha = 1;
                 ctx.fillRect(currentX - xOffset, currentY, fillWidth, fillDistance);
@@ -1346,12 +1431,16 @@ class singleBarChart extends barChart{
         this.days = [];
         importDays(4, this.days);
 
+        // hide the button
+        this.buttons.style.display = "none";
+
     }
     destructureData(data){
+        super.destructureData(data);
 
-        this.x = data["columns"][0];
+        // this.x = data["columns"][0];
         this.y = data["columns"][1];
-        this.x.splice(0, 1);
+        // this.x.splice(0, 1);
         this.y.splice(0, 1);
         this.color = data["colors"]["y0"];
     }
@@ -1454,7 +1543,6 @@ class areaChart extends Chart{
         this.drawWithAnArea(parameters);
     }
     animationFrame(parameters){
-        console.log("FRAMIN");
         this.drawWithAnArea(parameters);
     }
     drawWithAnArea(parameters){

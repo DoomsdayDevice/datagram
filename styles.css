@@ -82,7 +82,7 @@ h1 {
 
   text-align: center;
   color: black;
-  padding: 5px 10px 0px 10px;
+  padding: 5px;
   border: 1px solid black;
   border-radius: 6px;
 
@@ -91,6 +91,13 @@ h1 {
   opacity: 0;
   transition: opacity 0.3s;
 
+}
+.myTooltip .name{
+    float: left;
+    margin-right: 60px;
+}
+.myTooltip .number{
+    float: right;
 }
 
 /* SLIDERS */
