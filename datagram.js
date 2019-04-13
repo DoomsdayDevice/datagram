@@ -110,7 +110,6 @@ function initiateCharts(){
 
 }
 
-// function drawAnimation(parameters, chart, currentOldCeiling, distributedRelationship, currentFrame, currentFutureCeiling){
 function drawAnimation(parameters, chart, currentOldCeiling, distributedDifference, currentFrame, currentFutureCeiling){
     if (currentFrame <= NUMOFFRAMES) {
         parameters = chart.configureParametersForGraph();
@@ -126,9 +125,17 @@ function drawAnimation(parameters, chart, currentOldCeiling, distributedDifferen
 
 
         currentFrame += 1;
+
+        // find rel between ceilings
+        
+        let newOldRelationship = currentFutureCeiling / currentOldCeiling;
+        // every odd frame numbers are launched
+        chart.drawNumbers(currentOldCeiling, newOldRelationship, currentFrame);
+        chart.drawNumbers(currentFutureCeiling, newOldRelationship, currentFrame);
     } else {
         chart.animationActive = false;
         chart.drawGraph();
+        chart.drawNumbers(currentFutureCeiling, 1, NUMOFFRAMES);
 
     }
 };
@@ -173,7 +180,8 @@ class Chart{
 
         this.drawGraphOnMovement();
         this.drawMinimap();
-        this.drawNumbers(this.configureParametersForGraph());
+        // this.drawNumbers(this.configureParametersForGraph());
+        this.drawNumbers(this.configureParametersForGraph().ceiling, 1, NUMOFFRAMES);
         // this.drawHorizontalLine();
         
     }
@@ -810,11 +818,6 @@ class Chart{
 
     }
     animation(parameters){ 
-        let relationship;
-        let distributedRelationship;
-        let relationshipDifferece;
-
-
         let currentOldCeiling = this.oldCeiling;
         let currentFutureCeiling = parameters.ceiling;
         let currentNumOfFrames = NUMOFFRAMES;
@@ -848,7 +851,7 @@ class Chart{
 	      this.iCtx.beginPath();
 	      drawLines();
 
-	      this.iCtx.globalAlpha = 0.4;
+	      this.iCtx.globalAlpha = 0.2;
 	      this.iCtx.lineWidth = "2";
 	      this.iCtx.strokeStyle = "grey";
         this.iCtx.stroke();
@@ -894,7 +897,7 @@ class Chart{
             }
         } 
     }
-    drawNumbers(ceiling, distributedRelationship = 0, currentFrame = 1) {
+    drawNumbers(ceiling, newOldRelationship = 1, currentFrame = 1) {
 	      // drawing the numbers on the left side
 	      let y = this.graph.height - DATESPACE;
 
@@ -905,7 +908,12 @@ class Chart{
         this.iCtx.clearRect(0, 0, this.graph.width, y);
 	      let curNum = 0;
         let rowStep = ceiling / NUMOFROWS;
-        let rowHeight = (this.graph.height - DATESPACE) / NUMOFROWS * (1 + distributedRelationship * currentFrame);
+
+
+        // let newRow = newOldRelationship * oldRow;
+        let distributedRelationship = newOldRelationship / NUMOFFRAMES;
+        // let distributedDifference = difference / NUMOFFRAMES;
+        let rowHeight = (this.graph.height - DATESPACE) / NUMOFROWS * distributedRelationship * currentFrame;
         // TODO round floats
         // let numsPerPixel = areaHeight / NUMOFROWS;
         // get the difference between previous and new ceiling
@@ -921,7 +929,10 @@ class Chart{
 		        y -= rowHeight;
 	      }
         this.iCtx.lineWidth = 1;
-        this.drawHorizontalLines(rowHeight);
+
+        if (currentFrame % 2 == 0){ //launches lines but not too frequently
+            this.drawHorizontalLines(rowHeight);
+        }
         this.iCtx.globalAlpha = 1;
 
     }
