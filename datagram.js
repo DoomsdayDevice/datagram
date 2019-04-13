@@ -73,6 +73,12 @@ const myMath = {
         return Math.max(...array);
     },
 
+
+    addSecondArrayToFirst(array1, array2){
+        for (let i = 0; i < array1.length; i++){
+            array1[i] += array2[i];
+        }
+    }
 };
 
 
@@ -104,7 +110,49 @@ function initiateCharts(){
 
 }
 
+function drawAnimation(parameters, chart, currentOldCeiling, distributedRelationship, currentFrame){
+    if (currentFrame <= NUMOFFRAMES) {
+        parameters = chart.configureParametersForGraph();
 
+        requestAnimationFrame(function(){
+            drawAnimation(parameters, chart, currentOldCeiling,
+                          distributedRelationship, currentFrame);
+        });
+        parameters.ctx.clearRect(0, 0, parameters.xEndPoint, parameters.yEndPoint);
+
+        parameters.ceiling = currentOldCeiling * (1 + distributedRelationship * currentFrame);
+
+        chart.drawLinesForAllActiveArrays(parameters);
+
+        currentFrame += 1;
+
+        // TODO if the desired ceiling is achieved or surpassed - set frame to end
+        // let newFutureCeiling = parameters.ceiling;
+        // let currentCeiling = parameters.drawingCeiling;
+        // //currentFutureCeiling doesn't seem to be needed
+        // if(currentCeiling < newFutureCeiling){
+        //     currentFrame = NUMOFFRAMES;
+        //     console.log("We've hit the new Future ceilin, exiting prematurely");
+        // }
+
+
+        // draw text using old and new ceiling
+        chart.drawNumbers(currentOldCeiling, distributedRelationship, currentFrame);
+        // chart.drawNumbers(currentOldCeiling * (1+distributedRelationship * NUMOFFRAMES),
+        //                   distributedRelationship, currentFrame);
+    } else {
+        chart.animationActive = false;
+        // check if the chart's current ceiling same as local oldceiling
+        if (currentOldCeiling != chart.currentCeiling){
+            // console.log("THE CEIL HAS SHIFTED");
+            parameters.ceiling = chart.currentCeiling;
+            chart.animation(parameters);
+            // console.log("CURRENT OLD:", currentOldCeiling, "CURRENT:", chart.currentCeiling);
+            
+        }
+
+    }
+};
 
 
 class DrawingParameters{
@@ -134,6 +182,7 @@ class Chart{
         this.currentColumnCursor = null; // used to track which part of the info canv to redraw
         this.previousTouchPosition = null; // for tracking finger movement
         this.animationActive = false; // one animation at a time
+        this.oldCeiling = 0;
 
 
         // dummies TODO
@@ -215,7 +264,6 @@ class Chart{
         document.body.appendChild(this.div);
         this.div.className = "main-container";
         if (detectMobile()){
-            console.log("MOB");
             this.div.style.width = innerWidth + "px";
             this.div.style.left = "0 px";
         } else {
@@ -670,8 +718,8 @@ class Chart{
         parameters.xStart = xStart;
         parameters.xEnd = xEnd;
         parameters.ceiling = ceiling;
-        this.oldCeiling = ceiling; // TODO
         // parameters.oldCeiling = ceiling; // TODO make this global
+        this.currentCeiling = ceiling;
         parameters.xOffset = xOffset;
         parameters.columnsOnCanvas = cutout.numOfVisibleGraphColumns;
 
@@ -680,16 +728,17 @@ class Chart{
     drawGraph(){
         let parameters = this.configureParametersForGraph();
 
-        this.gCtx.clearRect(0, 0, this.graph.width, this.graph.height);
-        if (parameters.oldCeiling != parameters.ceiling) { // TODO consider code optimization with drawMinimap
+        if (this.oldCeiling != parameters.ceiling) { // TODO consider code optimization with drawMinimap
             if (!this.animationActive){
 
                 this.animationActive = true;
                 this.animation(parameters);
 
+                this.oldCeiling = parameters.ceiling; // NOTE that it will change before anim end
             }
             // parameters.oldCeiling = parameters.ceiling;
         } else {
+            this.gCtx.clearRect(0, 0, this.graph.width, this.graph.height);
             this.drawLinesForAllActiveArrays(parameters);
         }
     }
@@ -745,14 +794,14 @@ class Chart{
         }
     }
     drawLine({ctx, xArray, yArray, color, yStartPoint, yEndPoint, xStartPoint, xEndPoint,
-              xStart, xEnd, ceiling, oldCeiling, xOffset, columnsOnCanvas, drawingCeiling}) {
+              xStart, xEnd, ceiling, oldCeiling, xOffset, columnsOnCanvas}) {
         let areaHeight = yEndPoint - yStartPoint;
         let areaWidth = xEndPoint - xStartPoint;
 
         // let cutoutWidth = this.cutoutWidth / this.minimap.width * this.graph.width;
-        if (drawingCeiling){
-            ceiling = drawingCeiling; //TODO TEMP
-        }
+        // if (drawingCeiling){
+        //     ceiling = drawingCeiling; //TODO TEMP
+        // }
 
         // width for canvas and the columns which are drawn off the canvas
         // let visibleColumnWidth = areaWidth / columnsOnCanvas; 
@@ -782,19 +831,17 @@ class Chart{
     animation(parameters){ 
         // draws lines with given parameters and each time adjusts the ceiling
         // old ceiling
-        console.log("DRAWING");
         // RM extra code
 
 
         // find a rel instead
 
-        let ceilRelationship;
         let relationship;
         let distributedRelationship;
         let relationshipDifferece;
 
 
-        let currentOldCeiling = parameters.oldCeiling;
+        let currentOldCeiling = this.oldCeiling;
         let currentFutureCeiling = parameters.ceiling;
         let currentNumOfFrames = NUMOFFRAMES;
         let calculateVariables = () => {
@@ -809,42 +856,9 @@ class Chart{
         // stop the animation and launch a new one
         // after the current animation is over - check if slider ceiling is diff with graph ceiling
         let currentFrame = 1;
-        let drawAnimation = () => {
-            
-            if (currentFrame <= NUMOFFRAMES) {
 
-                requestAnimationFrame(drawAnimation);
-                parameters.ctx.clearRect(0, 0, parameters.xEndPoint, parameters.yEndPoint);
-
-                parameters.drawingCeiling = currentOldCeiling * (1 +distributedRelationship * currentFrame);
-
-                this.drawLinesForAllActiveArrays(parameters);
-
-                currentFrame += 1;
-                // TODO if the desired ceiling is achieved or surpassed - set frame to end
-                // let newFutureCeiling = parameters.ceiling;
-                // let currentCeiling = parameters.drawingCeiling;
-                // //currentFutureCeiling doesn't seem to be needed
-                // if(currentCeiling < newFutureCeiling){
-                //     currentFrame = NUMOFFRAMES;
-                //     console.log("We've hit the new Future ceilin, exiting prematurely");
-                // }
-            } else {
-                
-                this.animationActive = false;
-                // this.drawGraph();
-
-                // let round = (num) => {
-                //     return Math.round(num / 1) * 1;
-                // };
-                // if (round(parameters.drawingCeiling) != round(parameters.ceiling)){
-                    parameters.oldCeiling = parameters.drawingCeiling;
-                //     this.animation(parameters);
-                // }
-
-            }
-        };
-            requestAnimationFrame(drawAnimation);
+        let chart = this;
+        drawAnimation(parameters, chart, currentOldCeiling, distributedRelationship, currentFrame);
 
     }
 
@@ -852,7 +866,7 @@ class Chart{
 
 
 
-    drawHorizontalLines(rowHeight,){
+    drawHorizontalLines(rowHeight){
         // TODO i prolly don't need the parameters object here
 	      let drawLines = () =>{
             let x = 0;
@@ -913,24 +927,25 @@ class Chart{
             }
         } 
     }
-    drawNumbers(ceiling) {
+    drawNumbers(ceiling, distributedRelationship = 0, currentFrame = 1) {
 	      // drawing the numbers on the left side
 	      let y = this.graph.height - DATESPACE;
 
         // old ceil is used to calc nums
         // new to calc position
+        let opacity = 1 - (1 / currentFrame);
 
         this.iCtx.clearRect(0, 0, this.graph.width, y);
 	      let curNum = 0;
         let rowStep = ceiling / NUMOFROWS;
-        let rowHeight = (this.graph.height - DATESPACE) / NUMOFROWS;
+        let rowHeight = (this.graph.height - DATESPACE) / NUMOFROWS * (1 + distributedRelationship * currentFrame);
         // TODO round floats
         // let numsPerPixel = areaHeight / NUMOFROWS;
         // get the difference between previous and new ceiling
         // use that difference to change LOCAL nums per pixel
 
 
-
+        this.iCtx.globalAlpha = opacity;
 	      this.iCtx.font = "14px Helvetica"; //font for the numbers
 	      this.iCtx.fillStyle = "grey";
 	      for (let i=0; i < NUMOFROWS; i++){
@@ -938,11 +953,90 @@ class Chart{
 		        curNum += rowStep;
 		        y -= rowHeight;
 	      }
+        this.iCtx.lineWidth = 1;
         this.drawHorizontalLines(rowHeight);
+        this.iCtx.globalAlpha = 1;
 
     }
 
 
+    displayTooltip(currentArrayColumn, currentXPos){
+        // displaying the tooltip
+
+        //change the contents of the tooltip
+
+        let date;
+        date = new Date(this.x[currentArrayColumn]);
+        date = DOW[date.getDay()] + ", " + MONTHS[date.getMonth()] + ' ' + date.getDate();
+        let color;
+        if (getComputedStyle(document.body).backgroundColor == DAY.lead){
+            color = NIGHT.lead;
+            this.tooltip.style.backgroundColor = DAY.lead;
+        } else {
+            color = DAY.lead;
+            this.tooltip.style.backgroundColor = NIGHT.lead;
+
+        }
+        this.tooltip.innerHTML = `<p style="color:${color};">${date}</p>`;
+
+        // show the tooltip at needed location
+
+        // on the right side, if no space - on the left side
+        this.tooltip.style.opacity = "1";
+        this.tooltip.style.left = currentXPos + 40 + "px";
+        this.tooltip.style.top = 70 + "px";
+        // if the width of the div is smaller than canvas-divleft
+
+        let width = this.tooltip.clientWidth;
+
+        let left = this.tooltip.offsetLeft;
+        if (left > this.graph.width - width) {
+            this.tooltip.style.left = currentXPos - (width + 75) + "px";
+        }
+
+    };
+    drawCircles(convertedYValue, conversionQuotient, currentXPos, currentArrayColumn){
+        // drawing the circles for each line based on its configuration
+        let number;
+        let name;
+        let style;
+        for (let i in this.lines){
+            if (this.lines[i].isActive){
+                convertedYValue =
+                    this.graph.height - this.lines[i]["array"][currentArrayColumn] *
+                    conversionQuotient - DATESPACE;
+
+
+
+                this.pCtx.beginPath();
+                this.pCtx.arc(currentXPos, convertedYValue,
+                              10, 0, Math.PI * 2);
+                this.pCtx.fillStyle = getComputedStyle(document.body).backgroundColor;
+                this.pCtx.strokeStyle = this.lines[i]["color"];
+                this.pCtx.fill();
+                this.pCtx.stroke();
+                this.pCtx.fillStyle = "black";
+
+                // get the date
+                number = this.lines[i]["array"][currentArrayColumn];
+                name = this.lines[i]["checkboxName"];
+                style = `float:left; margin: 10px; color: ${this.lines[i]["color"]}`;
+                this.tooltip.innerHTML +=
+                    `<div style="${style}"><p>${number}</p><p>${name}</></div>`;
+
+            }
+        }
+
+    };
+    drawVerticalLine(currentXPos){
+        this.pCtx.beginPath();
+        this.pCtx.moveTo(currentXPos, 0);
+        this.pCtx.lineTo(currentXPos, this.graph.height - DATESPACE);
+
+        this.pCtx.lineWidth = "2";
+        this.pCtx.strokeStyle = "#777";
+        this.pCtx.stroke();
+    };
     drawPopup({clientX}){
         // gets the current mouse position and prints the appropriate array values
         let parameters = this.configureParametersForGraph();
@@ -961,7 +1055,6 @@ class Chart{
         let conversionQuotient = (this.graph.height - DATESPACE) / ceiling;
 
         let convertedYValue;
-        let date;
 
         // TODO optimize this code for offset
         let xOffset = cutout.sliderOffset / this.minimap.width * this.graph.width;
@@ -969,89 +1062,9 @@ class Chart{
         xOffset = xOffset / numOfCutColumns * this.x.length;
 
         let currentXPos = currentGraphColumn * columnWidth - xOffset;
-        let displayTooltip = () => {
-            // displaying the tooltip
-
-            //change the contents of the tooltip
-
-            date = new Date(this.x[currentArrayColumn]);
-            date = DOW[date.getDay()] + ", " + MONTHS[date.getMonth()] + ' ' + date.getDate();
-            let color;
-            if (getComputedStyle(document.body).backgroundColor == DAY.lead){
-                color = NIGHT.lead;
-                this.tooltip.style.backgroundColor = DAY.lead;
-            } else {
-                color = DAY.lead;
-                this.tooltip.style.backgroundColor = NIGHT.lead;
-
-            }
-            this.tooltip.innerHTML = `<p style="color:${color};">${date}</p>`;
-
-            // show the tooltip at needed location
-
-            // on the right side, if no space - on the left side
-            this.tooltip.style.opacity = "1";
-            this.tooltip.style.left = currentXPos + 40 + "px";
-            this.tooltip.style.top = 70 + "px";
-            // if the width of the div is smaller than canvas-divleft
-
-            let width = this.tooltip.clientWidth;
-
-            let left = this.tooltip.offsetLeft;
-            if (left > this.graph.width - width) {
-                this.tooltip.style.left = currentXPos - (width + 75) + "px";
-            }
-
-        };
-
-
-        let drawCircles = () => {
-            // drawing the circles for each line based on its configuration
-            let number;
-            let name;
-            let style;
-            for (let i in this.lines){
-                if (this.lines[i].isActive){
-                    convertedYValue =
-                        this.graph.height - this.lines[i]["array"][currentArrayColumn] *
-                        conversionQuotient - DATESPACE;
-
-
-
-                    this.pCtx.beginPath();
-                    this.pCtx.arc(currentXPos, convertedYValue,
-                                  10, 0, Math.PI * 2);
-                    this.pCtx.fillStyle = getComputedStyle(document.body).backgroundColor;
-                    this.pCtx.strokeStyle = this.lines[i]["color"];
-                    this.pCtx.fill();
-                    this.pCtx.stroke();
-                    this.pCtx.fillStyle = "black";
-
-                    // get the date
-                    number = this.lines[i]["array"][currentArrayColumn];
-                    name = this.lines[i]["checkboxName"];
-                    style = `float:left; margin: 10px; color: ${this.lines[i]["color"]}`;
-                    this.tooltip.innerHTML +=
-                        `<div style="${style}"><p>${number}</p><p>${name}</></div>`;
-
-                }
-            }
-
-        };
-        let drawVerticalLine = () => {
-
-            this.pCtx.beginPath();
-            this.pCtx.moveTo(currentXPos, 0);
-            this.pCtx.lineTo(currentXPos, this.graph.height - DATESPACE);
-
-            this.pCtx.lineWidth = "2";
-            this.pCtx.strokeStyle = "#777";
-            this.pCtx.stroke();
-        };
-
         //check if i have shifted columns to know if i should redraw
-        let start = 0;
-        let end = 0;
+        // let start = 0;
+        // let end = 0;
         // partial redraw
         /*if (this.currentColumnCursor != currentGraphColumn && this.isAnyArrayActive()){
             // change is negate or positive; +1
@@ -1096,9 +1109,9 @@ class Chart{
         this.currentColumnCursor = currentGraphColumn;
         // TODO clear only what's necessary
         this.pCtx.clearRect(0, 0, this.popup.width, this.popup.height);
-        displayTooltip();
-        drawVerticalLine();
-        drawCircles();
+        this.displayTooltip(currentArrayColumn, currentXPos);
+        this.drawVerticalLine(currentXPos);
+        this.drawCircles(convertedYValue, conversionQuotient, currentXPos, currentArrayColumn);
         // drawNumbers
 
     }
@@ -1233,42 +1246,47 @@ class barChart extends Chart{
     
 
 
-    drawBars({ctx, yArray, xStart, xEnd, color, yEndPoint, yStartPoint, barOffset=0, arrayOfOffsets}){
-        // let ceiling = Math.max(...yArray.slice(xStart, xEnd)); // TODO TEMP reuse old code and find pretty nums
-        // TODO ceiling here is probably redundant, because i can use the one from params
-        let ceiling = this.findPrettyMax(xStart, xEnd);
-        // let areaHeight = //this.graph.height - DATESPACE;
+    drawBars({ctx, yArray, xStart, xEnd, color, yEndPoint, yStartPoint, barOffset=0, arrayOfOffsets, ceiling, xOffset, columnsOnCanvas, xStartPoint, xEndPoint}){
+        // xStart = 0;
+        // xEnd = 10;
         let areaHeight = yEndPoint - yStartPoint;
-        let areaWidth = this.graph.width;
+        let areaWidth = xEndPoint - xStartPoint;
 
         let numOfColumns = xEnd - xStart;
-        let columnWidth = this.graph.width / numOfColumns;
+        let columnWidth = areaWidth / columnsOnCanvas;
 
         let numsPerPixel = areaHeight / ceiling; // TODO won't work with stacked bars
 
 
-        let currentOffset = arrayOfOffsets[0] * numsPerPixel; // for stacked bars
-        let currentX = 0;
-        let currentY = areaHeight - yArray[0] * numsPerPixel - currentOffset;
+        let currentOffset = arrayOfOffsets[xStart] * numsPerPixel; // for stacked bars
+        let currentX = xStartPoint - xOffset;
+        let currentY = areaHeight - yArray[xStart] * numsPerPixel - currentOffset;
+        let currentYWoff = areaHeight - yArray[xStart] * numsPerPixel;
 
         // TODO that's the problem, it should return for EVERY column, now it sends only the last one
         // switch to calculating offset in the wrapper (sum of all previous bars)
-        let fillDistance = this.graph.height - DATESPACE - currentY; // on the Y axis
-        let fillWidth = this.graph.width / numOfColumns - 1; // on the X axis
+        // TODO why does it use graph? what about mini
+        let fillDistance = areaHeight - DATESPACE - currentY - currentOffset; // on the Y axis
+        // num of col
+        let fillWidth = areaWidth / columnsOnCanvas - 1; // on the X axis
 
         ctx.fillStyle = color;
-        for (let x = xStart; x < xEnd; x++) {
-            fillDistance = this.graph.height - DATESPACE - currentY; // on the Y axis
-            ctx.fillRect(currentX, currentY, fillWidth, fillDistance);
+        for (let x = xStart; x < xEnd + 1; x++) {
 
             currentOffset = arrayOfOffsets[x] * numsPerPixel; //TEMP
-            currentY = areaHeight - yArray[x] * numsPerPixel - currentOffset;
-            currentX += columnWidth;
+            currentY = yEndPoint - help.round( yArray[x] * numsPerPixel )
+                - yStartPoint - currentOffset;
+            currentX = help.round((x - xStart) * columnWidth) - xOffset;
+
+            fillDistance = areaHeight - currentY - currentOffset; // on the Y axis
+            fillWidth = areaWidth / columnsOnCanvas - 1; // on the X axis
+            ctx.fillRect(currentX - xOffset, currentY, fillWidth, fillDistance);
             // TODO insert spaces between columns
 
         }
         // return the calculated stuff for
         // previous bar height (fill distance)
+
 
     }
 }
@@ -1310,6 +1328,7 @@ class stackedBarChart extends barChart{
         let parameters = this.configureParametersForGraph();
 
         this.gCtx.clearRect(0, 0, this.graph.width, this.graph.height); 
+
         this.drawStackedBars(parameters);
     }
     drawMinimap(){
@@ -1322,37 +1341,23 @@ class stackedBarChart extends barChart{
         this.drawStackedBars(parameters);
     }
     drawStackedBars(parameters){ // PARENTS: drawMinimap, drawGraph
-        // iterate through each bar and draw one by one
-        // use the parameters
-        // set teh y array in params and the color
-        // TODO STARTING X POS IN THIS FUNC
-        let color;
-        let previousBarHeight;
-        let currentBarOffset = 0;
-
         // array, starts at all 0s
-
         parameters.arrayOfOffsets = []; // to calc the position relative to the prev item in stack
+        // create an empty array of offsets
         for (let x = 0; x < this.x.length; x++){
             parameters.arrayOfOffsets.push(0);
         }
+        
+        // draw a bar and add value to stack for each active array
         for (let b = 0; b < this.bars.length; b++){
-            parameters.color = this.bars[b].color;
-            // console.log("Current color:", parameters.color);
+            if (this.bars[b].isActive){
+                parameters.color = this.bars[b].color;
 
-            parameters.yArray = this.bars[b].array;
-            function sumArrays(array1, array2){ // move it outside
-                // let newArray = [];
-                for (let i = 0; i < array1.length; i++){
-                    // newArray.push(array1[i] + array2[i]);
-                    array1[i] += array2[i];
-                }
+                parameters.yArray = this.bars[b].array;
+                this.drawBars(parameters);
+                myMath.addSecondArrayToFirst(parameters.arrayOfOffsets, this.bars[b].array);
+
             }
-            sumArrays(parameters.arrayOfOffsets, this.bars[b].array);
-            // console.log("offsets:", parameters.arrayOfOffsets);
-            
-            
-            this.drawBars(parameters);
         }
     }
 
@@ -1426,27 +1431,25 @@ class areaChart extends Chart{
 
         this.gCtx.clearRect(0, 0, this.graph.width, this.graph.height);
         // this.drawWrapper(parameters);
-        this.drawGraphWithAnArea(parameters);
+        this.drawWithAnArea(parameters);
         this.drawGraphWithAPie(parameters);
     }
-    drawGraphWithAnArea(parameters){
-        // polyline is an array of tuples
-        // the x position is the same throughout 
+    drawMinimap(){
+        let parameters = this.configureParametersForMinimap();
 
-        let floorX = [0, this.graph.width];
-        let floorY = this.graph.height - DATESPACE;
-        let floorArray = [floorY, floorY];
-        let currentLevel;
-
+        this.mCtx.clearRect(0, 0, this.minimap.width, this.minimap.height);
+        this.drawWithAnArea(parameters);
+    }
+    drawWithAnArea(parameters){
         parameters.floorArray = this.lines[0];// floorArray;
         parameters.roofArray = this.lines[0];
         parameters.color = this.lines[0].color;
-        parameters.xStart = 0;
-        parameters.xEnd = 20;
 
         let percentLines = []; //array of arrays TODO really huge floats
         let arrayOfOffsets = [];
 
+        // translating each array into an array of percentages
+        // STEP 1: finding the sum of all arrays
         let sumArray = [...this.lines[0].array]; // the first Y TODO consider ACTIVE arrays
         for(let x = 0; x < this.x.length; x++){
             // sum all Y's
@@ -1456,6 +1459,7 @@ class areaChart extends Chart{
             // creating array of offsets for drawArea
             arrayOfOffsets.push(1);
         }
+        // STEP 2: finding % of each array relative to sum
         // for each Y - divide the sum by that and add to corresponding sumarray
         for (let y = 0; y < this.lines.length; y++) {
             percentLines.push([]);
@@ -1465,10 +1469,15 @@ class areaChart extends Chart{
         }
 
 
-        // for every Y - send that Y+corresponding Offset, then add to that offset
+        // STEP 3: for every Y - send that Y+corresponding Offset, then add to that offset
         for (let y = 0; y < percentLines.length; y++){
-            
-            this.drawArea(arrayOfOffsets, percentLines[y], this.lines[y].color);
+            if (this.lines[y].isActive){
+                parameters.arrayOfOffsets = arrayOfOffsets;
+                parameters.yArray = percentLines[y];
+                parameters.color = this.lines[y].color;
+                this.drawArea(parameters);
+                
+            }
         }
         
     }
@@ -1508,19 +1517,21 @@ class areaChart extends Chart{
         }
 
     }
-    drawArea(arrayOfOffsets, yArray, color){
+    drawArea({ctx, arrayOfOffsets, yArray, color, xEndPoint, xStartPoint, ceiling, yEndPoint, yStartPoint, xStart, xEnd}){
         // takes an array of percentages of graph width 
         // use the given percentage and multiply areaHeight by it
-        let yEndPoint = this.graph.height - DATESPACE;
-        let yStartPoint = 0;
+        // let yEndPoint = this.graph.height - DATESPACE;
+        // let yStartPoint = 0;
         let areaHeight = yEndPoint - yStartPoint;
-        let ctx = this.gCtx;
 
-        let xStart = 0;
-        let xEnd = this.x.length;
+        // let xStart = 0;
+        // let xEnd = this.x.length;
         
+        let areaWidth = xEndPoint - xStartPoint;
         let numOfColumns = xEnd - xStart;
-        let columnWidth = this.graph.width / numOfColumns;
+        let columnWidth = areaWidth / numOfColumns;
+
+        let numsPerPixel = areaHeight / ceiling;
 
 
         let currentY;
@@ -1531,7 +1542,7 @@ class areaChart extends Chart{
         ctx.lineTo(0, areaHeight);
         for (let x = xStart; x < xEnd + 1; x++) {
             // draw a line and add the corresponding offset, then add that line's height to it
-            currentY = areaHeight - (arrayOfOffsets[x] + yArray[x]) * areaHeight;
+            currentY = areaHeight - (arrayOfOffsets[x] + yArray[x] * numsPerPixel) * areaHeight;
             ctx.lineTo(currentX, currentY);
 
             currentX += columnWidth;
