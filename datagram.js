@@ -94,7 +94,11 @@ function initiateCharts(){
 
 function drawAnimation(parameters, chart, currentOldCeiling, distributedDifference, currentFrame, currentFutureCeiling){
     if (currentFrame <= NUMOFFRAMES) {
-        parameters = chart.configureParametersForGraph();
+        if (parameters.ctx == chart.gCtx){ // detects whether it's the minimap or the graph
+            parameters = chart.configureParametersForGraph();
+        } else {
+            parameters = chart.configureParametersForMinimap();
+        }
 
         requestAnimationFrame(function(){
             drawAnimation(parameters, chart, currentOldCeiling, distributedDifference,
@@ -103,7 +107,7 @@ function drawAnimation(parameters, chart, currentOldCeiling, distributedDifferen
         
         parameters.ctx.clearRect(0, 0, parameters.xEndPoint, parameters.yEndPoint);
         parameters.ceiling = currentOldCeiling + (distributedDifference * currentFrame);
-        chart.drawLinesForAllActiveArrays(parameters);
+        chart.animationFrame(parameters);
 
 
         currentFrame += 1;
@@ -117,6 +121,7 @@ function drawAnimation(parameters, chart, currentOldCeiling, distributedDifferen
     } else {
         chart.animationActive = false;
         chart.drawGraph();
+        // chart.drawLinesForAllActiveArrays(parameters); // TODO drawgraph or this hmmm
         chart.drawNumbers(currentFutureCeiling, 1, NUMOFFRAMES);
 
     }
@@ -151,6 +156,7 @@ class Chart{
         this.previousTouchPosition = null; // for tracking finger movement
         this.animationActive = false; // one animation at a time
         this.oldCeiling = 0;
+        this.oldMinimapCeiling = 0;
 
 
         // dummies TODO
@@ -688,7 +694,7 @@ class Chart{
         if (!this.oldCeiling){ // if we set it for the first time
             this.oldCeiling = ceiling;
         }
-        this.currentCeiling = ceiling;
+        parameters.oldCeiling = this.oldCeiling;
         parameters.xOffset = xOffset;
         parameters.columnsOnCanvas = cutout.numOfVisibleGraphColumns;
 
@@ -697,7 +703,6 @@ class Chart{
     drawGraph(){
         let parameters = this.configureParametersForGraph();
 
-        // if the ceiling has shifted - launch anim
         if (this.oldCeiling != parameters.ceiling) { // TODO consider code optimization with drawMinimap since it uses the same code
             if (!this.animationActive){
 
@@ -707,13 +712,14 @@ class Chart{
                 this.oldCeiling = parameters.ceiling; // NOTE that it will change before anim end
             }
         } else {
-            this.gCtx.clearRect(0, 0, this.graph.width, this.graph.height);
+            parameters.ctx.clearRect(0, 0, this.graph.width, this.graph.height);
             this.drawLinesForAllActiveArrays(parameters);
         }
+        // if the ceiling has shifted - launch anim
     }
     configureParametersForMinimap(){
         let parameters = new DrawingParameters();
-        let initialMinimapCeiling = this.findPrettyMax(0, this.x.length);
+        let ceiling = this.findPrettyMax(0, this.x.length);
         parameters.ctx = this.mCtx;
         parameters.xArray = this.x;
         parameters.yArray = null;
@@ -724,27 +730,22 @@ class Chart{
         parameters.xEndPoint = this.minimap.width;
         parameters.xStart = 0;
         parameters.xEnd = this.x.length - 1;
-        parameters.ceiling = initialMinimapCeiling;
-        parameters.oldCeiling = initialMinimapCeiling;
-        parameters.xOffset = null;
+        parameters.ceiling = ceiling;
+        parameters.oldCeiling = this.oldMinimapCeiling;
+        parameters.xOffset = 0; // mini doesn't need an offset
         parameters.columnsOnCanvas = this.x.length;
         return parameters;
     }
     drawMinimap(){ // PARENTS: createButtons, launchChart, 
-        // TODO optimize ceiling calculations so i don't do them twice with drawGraph
         let parameters = this.configureParametersForMinimap();
 
         this.mCtx.clearRect(0, 0, this.minimap.width, this.minimap.height);
 
-        let ceiling = this.findPrettyMax(0, this.x.length); //recal ceiling
-        parameters.ceiling = ceiling;
-        parameters.xOffset = 0; // mini doesn't need an offset
 
         // checking if i need to do an animation
-        if (parameters.oldCeiling != ceiling) {
-
+        if (this.oldMinimapCeiling != parameters.ceiling) {
             this.animation(parameters);
-            parameters.oldCeiling  = ceiling;
+            this.oldMinimapCeiling  = parameters.ceiling;
         } else {
             this.drawLinesForAllActiveArrays(parameters);
         }
@@ -798,7 +799,7 @@ class Chart{
 
     }
     animation(parameters){ 
-        let currentOldCeiling = this.oldCeiling;
+        let currentOldCeiling = parameters.oldCeiling;
         let currentFutureCeiling = parameters.ceiling;
         let currentNumOfFrames = NUMOFFRAMES;
 
@@ -810,6 +811,9 @@ class Chart{
         let chart = this;
         drawAnimation(parameters, chart, currentOldCeiling, distributedDifference, currentFrame, currentFutureCeiling);
 
+    }
+    animationFrame(parameters){
+        this.drawLinesForAllActiveArrays(parameters);
     }
 
 
@@ -1292,11 +1296,25 @@ class stackedBarChart extends barChart{
     }
     
 
+    animationFrame(parameters){
+        this.drawStackedBars(parameters);
+    }
     drawGraph(){
         // TODO clearing the canvas should prolly be done in the wrapper using the param ctx
         let parameters = this.configureParametersForGraph();
 
-        this.gCtx.clearRect(0, 0, this.graph.width, this.graph.height); 
+        if (this.oldCeiling != parameters.ceiling) { // TODO consider code optimization with drawMinimap since it uses the same code
+            if (!this.animationActive){
+
+                this.animationActive = true;
+                this.animation(parameters);
+
+                this.oldCeiling = parameters.ceiling; // NOTE that it will change before anim end
+            }
+        } else {
+            parameters.ctx.clearRect(0, 0, this.graph.width, this.graph.height);
+            this.drawStackedBars(parameters);
+        }
 
         this.drawStackedBars(parameters);
     }
@@ -1358,10 +1376,32 @@ class singleBarChart extends barChart{
     }
 
     drawGraph(){
+        let parameters = this.configureParametersForGraph();
+
+        if (this.oldCeiling != parameters.ceiling) {
+            if (!this.animationActive){
+
+                this.animationActive = true;
+                this.animation(parameters);
+
+                this.oldCeiling = parameters.ceiling; // NOTE that it will change before anim end
+            }
+        } else {
+            parameters.ctx.clearRect(0, 0, this.graph.width, this.graph.height);
+            // this.drawLinesForAllActiveArrays(parameters);
+            this.drawBars(parameters);
+        }
+        // if the ceiling has shifted - launch anim
+    }
+    drawGraphOld(){
         // this.drawBars(this.y, 300, this.x.length, this.color);
         let parameters = this.configureParametersForGraph();
 
         this.gCtx.clearRect(0, 0, this.graph.width, this.graph.height);
+        this.drawBars(parameters);
+
+    }
+    animationFrame(parameters){
         this.drawBars(parameters);
     }
     drawMinimap(){
