@@ -92,6 +92,46 @@ function initiateCharts(){
 
 }
 
+function drawAnimation2Y(parametersFirst, parametersSecond, chart, currentOldCeilingFirst,
+                         currentOldCeilingSecond, distributedDifferenceFirst,
+                         distributedDifferenceSecond, currentFrame, currentFutureCeilingFirst,
+                        currentFutureCeilingSecond){
+    if (currentFrame <= NUMOFFRAMES) {
+        if (parametersFirst.ctx == chart.gCtx){ // detects whether it's the minimap or the graph
+            parametersFirst = chart.configureParametersForGraphFirst();
+            parametersSecond = chart.configureParametersForGraphSecond(); // TODO how to make them diff
+        } else {
+            parametersFirst = chart.configureParametersForMinimapFirst();
+            parametersSecond = chart.configureParametersForMinimapSecond();
+        }
+
+        requestAnimationFrame(function(){
+            drawAnimation2Y(parametersFirst, parametersSecond, chart, currentOldCeilingFirst, currentFutureCeilingSecond, distributedDifferenceFirst, distributedDifferenceSecond,
+                          currentFrame, currentFutureCeilingFirst, currentFutureCeilingSecond);
+        });
+        
+        parametersFirst.ctx.clearRect(0, 0, parametersFirst.xEndPoint, parametersFirst.yEndPoint);
+
+        parametersFirst.ceiling = currentOldCeilingFirst + (distributedDifferenceFirst * currentFrame);
+        parametersFirst.ceiling = currentOldCeilingFirst + (distributedDifferenceFirst * currentFrame);
+        chart.animationFrame(parametersFirst, parametersSecond);
+        
+        
+        currentFrame += 1;
+
+        // find rel between ceilings for nums
+        // let newOldRelationship = currentFutureCeiling / currentOldCeiling;
+        // chart.drawNumbers(currentOldCeiling, newOldRelationship, currentFrame);
+        // chart.drawNumbers(currentFutureCeiling, newOldRelationship, currentFrame);
+    } else {
+        chart.animationActive = false;
+        // chart.drawGraph();
+        // chart.drawLinesForAllActiveArrays(parameters); // TODO drawgraph or this hmmm
+        // chart.drawNumbers(currentFutureCeiling, 1, NUMOFFRAMES); // TODO add this
+
+    }
+};
+
 function drawAnimation(parameters, chart, currentOldCeiling, distributedDifference, currentFrame, currentFutureCeiling){
     if (currentFrame <= NUMOFFRAMES) {
         if (parameters.ctx == chart.gCtx){ // detects whether it's the minimap or the graph
@@ -108,8 +148,8 @@ function drawAnimation(parameters, chart, currentOldCeiling, distributedDifferen
         parameters.ctx.clearRect(0, 0, parameters.xEndPoint, parameters.yEndPoint);
         parameters.ceiling = currentOldCeiling + (distributedDifference * currentFrame);
         chart.animationFrame(parameters);
-
-
+        
+        
         currentFrame += 1;
 
         // find rel between ceilings
@@ -767,17 +807,14 @@ class Chart{
         
 
         let lowestLocal = Math.min(...parameters.yArray.slice(parameters.xStart, parameters.xEnd+1));
-        console.log("lowest local:", lowestLocal);
         let localCeiling = parameters.ceiling - lowestLocal;
         let localNumsPerPixel = areaHeight / localCeiling;
 
         let cutArray = [];
-        console.log("yArr", parameters.yArray);
         for (let x = 0; x < parameters.yArray.length; x++){
             cutArray.push(parameters.yArray[x] - lowestLocal);
 
         }
-        console.log("here", cutArray);
         parameters.ceiling = localCeiling;
         parameters.yArray = cutArray;
 
@@ -969,7 +1006,7 @@ class Chart{
             this.tooltip.style.backgroundColor = NIGHT.lead;
 
         }
-        this.tooltip.innerHTML = `<p style="color:${color}; float: left;">${date}</p>`;
+        this.tooltip.innerHTML = `<p class="header" style="color:${color};">${date}</p>`;
 
         // show the tooltip at needed location
 
@@ -985,7 +1022,10 @@ class Chart{
         if (left > this.graph.width - width) {
             this.tooltip.style.left = currentXPos - (width + 75) + "px";
         }
+        this.addItemsToTooltip(currentArrayColumn);
 
+    };
+    addItemsToTooltip(currentArrayColumn){
         // Displaying each item
         let number;
         let name;
@@ -998,11 +1038,9 @@ class Chart{
                 style = `margin: 10px; color: ${this.lines[i]["color"]}`;
                 this.tooltip.innerHTML +=
                     `<div style="${style}"><p class="name">${name}</p><p class="number">${number}</></div>`;
-
             }
         }
-
-    };
+    }
     drawCircles(convertedYValue, conversionQuotient, currentXPos, currentArrayColumn){
         // drawing the circles for each line based on its configuration
         for (let i in this.lines){
@@ -1192,8 +1230,8 @@ class line2YChart extends Chart{
         super(data, title);
 
         // VARS
-        this.firstOldCeiling = 0;
-        this.secondOldCeiling = 0;
+        this.oldCeilingFirst = 0;
+        this.oldCeilingSecond = 0;
     }
 
     
@@ -1207,36 +1245,81 @@ class line2YChart extends Chart{
         return myMath.findPrettyRoundNum(currentMax);
 
     }
+    configureParametersForGraphFirst(){
+        let parameters = this.configureParametersForGraph();
+        parameters.yArray = this.lines[0].array;
+        parameters.color = this.lines[0].color;
+        parameters.ceiling = this.findPrettyMax(parameters.xStart, parameters.xEnd, parameters.yArray);
+        if (!this.oldCeilingFirst){ // if we set it for the first time
+            this.oldCeilingFirst = parameters.ceiling;
+        }
+        parameters.oldCeiling = this.oldCeilingFirst;
+        return parameters;
+    }
+    configureParametersForGraphSecond(){
+        let parameters = this.configureParametersForGraph();
+        parameters.yArray = this.lines[1].array;
+        parameters.color = this.lines[1].color;
+        parameters.ceiling = this.findPrettyMax(parameters.xStart, parameters.xEnd, parameters.yArray);
+        if (!this.oldCeilingSecond){ // if we set it for the first time
+            this.oldCeilingSecond = parameters.ceiling;
+        }
+        parameters.oldCeiling = this.oldCeilingSecond;
+        return parameters;
+    }
     drawGraph(){
         // configure parameters for first
-        // ceiling should be calculated for each array UNLIKE how Chart does it for all actives
         let first = this.lines[0];
         let second = this.lines[1];
-        let firstArray = this.lines[0].array;
-        let secondArray = this.lines[1].array;
-
-        let firstParams = this.configureParametersForGraph();
-        firstParams.ceiling = this.findPrettyMax(firstParams.xStart, firstParams.xEnd, firstArray);
-        // for second
-        let secondParams = this.configureParametersForGraph();
-        secondParams.ceiling = this.findPrettyMax(secondParams.xStart, secondParams.xEnd, secondArray);
+        let parametersFirst = this.configureParametersForGraphFirst();
+        let parametersSecond = this.configureParametersForGraphSecond();
 
 
-        firstParams.ctx.clearRect(0, 0, this.graph.width, this.graph.height);
-        if (first.isActive){
-            // this.drawLinesForAllActiveArrays(firstParams);
-            firstParams.color = first["color"];
-            firstParams.yArray = firstArray;
-            this.drawLine(firstParams);
+        // parametersFirst.ctx.clearRect(0, 0, this.graph.width, this.graph.height);
+        // if (first.isActive){
+        //     this.drawLine(parametersFirst);
+        // }
+
+        // if (second.isActive){
+        //     this.drawLine(parametersSecond);
+        // }
+        if (this.oldCeilingFirst != parametersFirst.ceiling || this.oldCeilingSecond != parametersSecond.ceiling) { // TODO consider code optimization with drawMinimap since it uses the same code
+            if (!this.animationActive){
+
+                this.animationActive = true;
+                this.animation(parametersFirst, parametersSecond);
+
+                this.oldCeilingFirst = parametersFirst.ceiling; // NOTE that it will change before anim end
+                this.oldCeilingSecond = parametersSecond.ceiling; // NOTE that it will change before anim end
+            }
+        } else {
+            parametersFirst.ctx.clearRect(0, 0, this.graph.width, this.graph.height);
+                this.drawLine(parametersFirst);
+                this.drawLine(parametersSecond);
+            // this.drawLinesForAllActiveArrays(para);
         }
+    }
+    animation(parametersFirst, parametersSecond){
+        
+        let currentOldCeilingFirst = parametersFirst.oldCeiling;
+        let currentFutureCeilingFirst = parametersFirst.ceiling;
+        let currentOldCeilingSecond = parametersSecond.oldCeiling;
+        let currentFutureCeilingSecond = parametersSecond.ceiling;
+        let currentNumOfFrames = NUMOFFRAMES;
 
-        if (second.isActive){
-            // this.drawLinesForAllActiveArrays(secondParams);
-            secondParams.color = second["color"];
-            secondParams.yArray = secondArray;
-            this.drawLine(secondParams);
-        }
+        let differenceFirst = currentFutureCeilingFirst - currentOldCeilingFirst;
+        let distributedDifferenceFirst = differenceFirst / NUMOFFRAMES;
+        let differenceSecond = currentFutureCeilingSecond - currentOldCeilingSecond;
+        let distributedDifferenceSecond = differenceSecond / NUMOFFRAMES;
+        
+        let currentFrame = 1;
 
+        drawAnimation2Y(parametersFirst, parametersSecond, this, currentOldCeilingFirst, currentFutureCeilingSecond, distributedDifferenceFirst, distributedDifferenceSecond,
+                      currentFrame, currentFutureCeilingFirst, currentFutureCeilingSecond);
+    }
+    animationFrame(parametersFirst, parametersSecond){
+        this.drawLine(parametersFirst);
+        this.drawLine(parametersSecond);
     }
 }
 
@@ -1691,6 +1774,50 @@ class areaChart extends Chart{
         ctx.fill();
         // ctx.strokeStyle = color;
         // ctx.stroke();
+
+    }
+    drawGraphPopup(currentArrayColumn, currentXPos, convertedYValue, conversionQuotient){
+        this.pCtx.clearRect(0, 0, this.popup.width, this.popup.height);
+        this.displayTooltip(currentArrayColumn, currentXPos);
+        this.drawVerticalLine(currentXPos);
+        // this.drawCircles(convertedYValue, conversionQuotient, currentXPos, currentArrayColumn);
+    }
+    addItemsToTooltip(currentArrayColumn){
+        // Displaying each item
+        let number;
+        let name;
+        let style;
+        let percentage;
+
+
+        // sum all the items in that array
+        let sumOfItems = 0;
+        for (let i in this.lines){
+            if (this.lines[i].isActive){
+                sumOfItems += this.lines[i]["array"][currentArrayColumn];
+
+            }
+        }
+
+
+
+        for (let i in this.lines){
+            if (this.lines[i].isActive){
+                // get the date
+                number = this.lines[i]["array"][currentArrayColumn];
+                name = this.lines[i]["checkboxName"];
+                style = `margin: 10px; color: ${this.lines[i]["color"]}`;
+                percentage = (Math.round(100 / sumOfItems * number));
+
+                this.tooltip.innerHTML +=
+                    `<div style="${style}"><p class="item"><span class="percentage">${percentage}%</span><span class="name">${name}</span><p class="number">${number}</></div>`;
+
+            }
+        }
+    }
+        
+    displayTooltip(currentArrayColumn, currentXPos){
+        super.displayTooltip(currentArrayColumn, currentXPos);
 
     }
 }

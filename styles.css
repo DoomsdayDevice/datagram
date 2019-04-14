@@ -92,8 +92,20 @@ h1 {
   transition: opacity 0.3s;
 
 }
-.myTooltip .name{
+.myTooltip .header{
     float: left;
+    margin: 5px;
+    font-weight: bold;
+}
+.myTooltip .item{
+    float:left;
+    color: black;
+}
+.myTooltip .percentage{
+    margin-right: 5px;
+    font-weight: bold;
+}
+.myTooltip .name{
     margin-right: 60px;
 }
 .myTooltip .number{
