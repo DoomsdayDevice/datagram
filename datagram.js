@@ -81,6 +81,58 @@ const myMath = {
         }
 
         return n.toString();
+    },
+    arraysOfArraysAreEqual(array1, array2){ // assuming same length
+        for (let x = 0; x < array1.length; x++){
+            if(!myMath.arraysAreEqual(array1[x], array2[x])){
+                return false;
+            }
+        }
+        return true;
+    },
+    arraysAreEqual(array1, array2){ // assuming same length
+        if(!array2){
+            return false;
+        }
+        for (let x = 0; x < array1.length; x++){
+            if (array1[x] != array2[x]){return false;};
+        }
+        return true;
+    },
+    subtractSecondArrayOfArraysFromFirst(array1, array2){
+        for(let x = 0; x < array1.length; x++){
+            myMath.subtractSecondFromFirst(array1[x], array2[x]);
+        }
+    },
+    subtractSecondFromFirst(array1, array2){
+        for(let x = 0; x < array1.length; x++){
+            array1[x] -= array2[x];
+        }
+
+    },
+
+    divideArrayOfArraysByNum(array1, num){
+        for(let x = 0; x < array1.length; x++){
+            myMath.divideArrayByNum(array1[x], num);
+        }
+    },
+    divideArrayByNum(array1, num){
+        for (let x = 0; x < array1.length; x++){
+            array1[x] /= num;
+        }
+    },
+    cloneNestedArray(array){
+        let clone = [];
+        for (let x = 0; x < array.length; x++){
+            clone.push([...array[x]]);
+        }
+        return clone;
+
+    },
+    addSecondNestedArrayToFirst(array1, array2){
+        for(let x = 0; x < array1.length; x++){
+            myMath.addSecondArrayToFirst(array1[x], array2[x]);
+        }
     }
 };
 
@@ -112,6 +164,34 @@ function initiateCharts(){
 
 }
 
+function drawAreaAnimation(parameters, chart, currentFrame, oldPercentLines, arrayOfOffsets,
+                           arrayOfDistributedDifferences){
+    // currentArray = Old * distributedDifference;
+
+    if (currentFrame < NUMOFFRAMES){
+        requestAnimationFrame(function(){
+            drawAreaAnimation(parameters, chart, currentFrame, oldPercentLines, arrayOfOffsets,
+                              arrayOfDistributedDifferences);
+        });
+
+
+        // cloning array of offsets before animation so it doesn't mutate it
+        let clonedArrayOfOffsets = [...arrayOfOffsets];
+        chart.sendAllActiveToDrawArea(parameters, oldPercentLines, clonedArrayOfOffsets); // NOTE maybe clone
+
+        // add distributed difference to the old array
+        myMath.addSecondNestedArrayToFirst(oldPercentLines, arrayOfDistributedDifferences); 
+        currentFrame += 1;
+    } else {
+        chart.justBeenRemoved = null;
+        chart.justBeenSelected = null;
+        chart.animationActive = false;
+        if (chart.mode == "area"){
+            chart.drawGraph();
+        }
+        chart.drawMinimap();
+    }
+}
 function drawAnimation2Y(parametersFirst, parametersSecond, chart, currentOldCeilingFirst,
                          currentOldCeilingSecond, distributedDifferenceFirst,
                          distributedDifferenceSecond, currentFrame, currentFutureCeilingFirst,
@@ -146,8 +226,10 @@ function drawAnimation2Y(parametersFirst, parametersSecond, chart, currentOldCei
         
         parametersFirst.ctx.clearRect(0, 0, parametersFirst.xEndPoint, parametersFirst.yEndPoint);
 
+        // parametersFirst.ceiling = currentOldCeilingFirst + (distributedDifferenceFirst * currentFrame);
         parametersFirst.ceiling = currentOldCeilingFirst + (distributedDifferenceFirst * currentFrame);
-        parametersFirst.ceiling = currentOldCeilingFirst + (distributedDifferenceFirst * currentFrame);
+        // TODO weird, why do i not set param second ceiling?
+        parametersFirst.currentFrame = currentFrame;
         chart.animationFrame(parametersFirst, parametersSecond);
         
         
@@ -163,6 +245,8 @@ function drawAnimation2Y(parametersFirst, parametersSecond, chart, currentOldCei
         // chart.drawNumbers(currentOldCeilingSecond, newOldRelationshipSecond, currentFrame, "R");
         chart.drawNumbers(currentFutureCeilingSecond, newOldRelationshipSecond, currentFrame, "R");
     } else {
+        chart.justBeenRemoved = null;
+        chart.justBeenSelected = null;
         chart.animationActive = false;
         chart.drawGraph();
         // chart.drawLinesForAllActiveArrays(parameters); // TODO drawgraph or this hmmm
@@ -1195,8 +1279,9 @@ class Chart{
             }
         }
     }
-    drawCircles(convertedYValue, conversionQuotient, currentXPos, currentArrayColumn){
+    drawCircles(conversionQuotient, currentXPos, currentArrayColumn){
         // drawing the circles for each line based on its configuration
+        let convertedYValue;
         for (let i in this.lines){
             if (this.lines[i].isActive){
                 convertedYValue =
@@ -1207,10 +1292,11 @@ class Chart{
 
                 this.pCtx.beginPath();
                 this.pCtx.arc(currentXPos, convertedYValue,
-                              10, 0, Math.PI * 2);
+                              6 * pixelRatio, 0, Math.PI * 2);
                 this.pCtx.fillStyle = getComputedStyle(document.body).backgroundColor;
                 this.pCtx.strokeStyle = this.lines[i]["color"];
                 this.pCtx.fill();
+                this.pCtx.lineWidth = 2 * pixelRatio;
                 this.pCtx.stroke();
                 this.pCtx.fillStyle = "black";
 
@@ -1252,7 +1338,7 @@ class Chart{
         // TODO [#A] where do i get the old ceiling for the popup?
         let conversionQuotient = (this.graph.height - DATESPACE) / ceiling;
 
-        let convertedYValue;
+        // let convertedYValue;
 
         // TODO optimize this code for offset
         let xOffset = cutout.sliderOffset / this.minimap.width * this.graph.width;
@@ -1261,14 +1347,14 @@ class Chart{
 
         let currentXPos = currentGraphColumn * columnWidth - xOffset;
         
-        this.drawGraphPopup(currentArrayColumn, currentXPos, convertedYValue, conversionQuotient);
+        this.drawGraphPopup(currentArrayColumn, currentXPos, conversionQuotient);
 
     }
-    drawGraphPopup(currentArrayColumn, currentXPos, convertedYValue, conversionQuotient){
+    drawGraphPopup(currentArrayColumn, currentXPos, conversionQuotient){
         this.pCtx.clearRect(0, 0, this.popup.width, this.popup.height);
         this.displayTooltip(currentArrayColumn, currentXPos / pixelRatio);
         this.drawVerticalLine(currentXPos);
-        this.drawCircles(convertedYValue, conversionQuotient, currentXPos, currentArrayColumn);
+        this.drawCircles(conversionQuotient, currentXPos, currentArrayColumn);
     }
     isAnyArrayActive(){
         for (let i in this.lines){
@@ -1395,7 +1481,7 @@ class lineChart extends Chart{
 
 class line2YChart extends Chart{
     constructor(data){
-        let title = "2Y Chart";
+        let title = "There Was an Attempt";
         super(data, title);
 
         // VARS
@@ -1502,7 +1588,7 @@ class line2YChart extends Chart{
         }
 
 
-        if (this.oldCeilingFirst != parametersFirst.ceiling || this.oldCeilingSecond != parametersSecond.ceiling) { // TODO consider code optimization with drawMinimap since it uses the same code
+        if (this.oldCeilingFirst != parametersFirst.ceiling || this.oldCeilingSecond != parametersSecond.ceiling || onButtonPress) { // TODO consider code optimization with drawMinimap since it uses the same code
             if (!this.animationActive){
 
                 this.animationActive = true;
@@ -1546,21 +1632,71 @@ class line2YChart extends Chart{
         this.drawLine(parameters);
     }
     animationFrame(parametersFirst, parametersSecond){
-        // if (this.lines[i].isActive || this.lines[i] == this.justBeenRemoved) {
-        //     // when turning a line on/off
-        //     if (this.lines[i] == this.justBeenSelected && parameters.onButtonPress){
-        //         parameters.ctx.globalAlpha = 1 / NUMOFFRAMES * parameters.currentFrame;
-        //     } else if (this.lines[i] == this.justBeenRemoved && parameters.onButtonPress){
-        //         parameters.ctx.globalAlpha = 1 - 1 / NUMOFFRAMES * parameters.currentFrame;
-        //     }
+        // if (this.lines[i] == this.justBeenSelected && parameters.onButtonPress){
+        //     // parameters.ctx.globalAlpha = 1 / NUMOFFRAMES * parameters.currentFrame;
+        // } else if (this.lines[i] == this.justBeenRemoved && parameters.onButtonPress){
+        //     // parameters.ctx.globalAlpha = 1 - 1 / NUMOFFRAMES * parameters.currentFrame;
         // }
-        if (this.lines[0].isActive){
+
+        if (this.lines[0].isActive || this.lines[0] == this.justBeenRemoved){
+            if (this.lines[0] == this.justBeenSelected && parametersFirst.onButtonPress){
+                parametersFirst.ctx.globalAlpha = 1 / NUMOFFRAMES * parametersFirst.currentFrame;
+            } else if (this.lines[0] == this.justBeenRemoved && parametersFirst.onButtonPress) {
+                parametersFirst.ctx.globalAlpha = 1 - 1 / NUMOFFRAMES * parametersFirst.currentFrame;
+            }
             this.drawLine2Y(parametersFirst);
         }
-        if (this.lines[1].isActive){
+        parametersFirst.ctx.globalAlpha = 1;
+
+        if (this.lines[1].isActive || this.lines[1] == this.justBeenRemoved){
+            if (this.lines[1] == this.justBeenSelected && parametersSecond.onButtonPress){
+                parametersFirst.ctx.globalAlpha = 1 / NUMOFFRAMES * parametersFirst.currentFrame;
+            } else if (this.lines[1] == this.justBeenRemoved && parametersFirst.onButtonPress) {
+                parametersFirst.ctx.globalAlpha = 1 - 1 / NUMOFFRAMES * parametersFirst.currentFrame;
+            }
             this.drawLine2Y(parametersSecond);
         }
+        parametersFirst.ctx.globalAlpha = 1;
     }
+    drawCircles(conversionQuotient, currentXPos, currentArrayColumn){
+        // drawing the circles for each line based on its configuration
+        let convertedYValue;
+        let ceilingFirst = this.configureParametersForGraphFirst().ceiling;
+        let ceilingSecond = this.configureParametersForGraphSecond().ceiling;
+        let conversionQuotientFirst = (this.graph.height - DATESPACE) / ceilingFirst;
+        let conversionQuotientSecond = (this.graph.height - DATESPACE) / ceilingSecond;
+
+        let convertedYValueFirst =
+            this.graph.height - this.lines[0]["array"][currentArrayColumn] *
+            conversionQuotientFirst - DATESPACE;
+        let convertedYValueSecond =
+            this.graph.height - this.lines[1]["array"][currentArrayColumn] *
+            conversionQuotientSecond - DATESPACE;
+        for (let i in this.lines){
+            if (this.lines[i].isActive){
+
+                if (i == 0){
+                    convertedYValue = convertedYValueFirst;
+                } else {
+                    convertedYValue = convertedYValueSecond;
+                }
+
+
+                this.pCtx.beginPath();
+                this.pCtx.arc(currentXPos, convertedYValue,
+                              6 * pixelRatio, 0, Math.PI * 2);
+                this.pCtx.fillStyle = getComputedStyle(document.body).backgroundColor;
+                this.pCtx.strokeStyle = this.lines[i]["color"];
+                this.pCtx.fill();
+                this.pCtx.lineWidth = 2 * pixelRatio;
+                this.pCtx.stroke();
+                this.pCtx.fillStyle = "black";
+
+
+            }
+        }
+
+    };
 }
 
 
@@ -1702,8 +1838,13 @@ class stackedBarChart extends barChart{
         this.mCtx.clearRect(0, 0, this.minimap.width, this.minimap.height);
 
         let ceiling = this.findPrettyMax(0, this.x.length); //recal ceiling
-        parameters.ceiling = ceiling;
-        this.drawStackedBars(parameters);
+        // parameters.ceiling = ceiling;
+        if (this.oldMinimapCeiling != parameters.ceiling) {
+            this.animation(parameters);
+            this.oldMinimapCeiling  = parameters.ceiling;
+        } else {
+            this.drawStackedBars(parameters);
+        }
     }
     drawStackedBars(parameters){ // PARENTS: drawMinimap, drawGraph
         // array, starts at all 0s
@@ -1842,8 +1983,80 @@ class areaChart extends Chart{
         let title = "Not the Kind of Fruit Pies I Like";
         super(data, title);
 
-        // this.popup.addEventListener("click", this.drawGraphWithAPie.bind(this));
+        this.boundChangeMode = this.changeMode.bind(this);
+        this.boundSelectPieceOfPie = this.selectPieceOfPie.bind(this);
+        this.popup.addEventListener("click", this.boundChangeMode);
         // this.popup.addEventListener("touchstart", this.drawGraphWithAPie.bind(this));
+        this.mode = "area";
+
+
+        // adding the zoom button 
+        this.zoomButton = document.createElement("button");
+        this.canvases.appendChild(this.zoomButton);
+        this.zoomButton.className = "zoom-button";
+        this.zoomButton.textContent = "Zoom Out";
+        this.zoomButton.style.display = "none";
+        this.zoomButton.addEventListener("click", this.changeMode.bind(this));
+
+        this.periodText = document.createElement("p");
+        this.canvases.appendChild(this.periodText);
+        this.periodText.className = "period-text";
+        this.periodText.textContent = "ssanina";
+        this.periodText.style.display = "none";
+
+        this.piePopup = document.createElement("div");
+        this.canvases.appendChild(this.piePopup);
+        this.piePopup.className = "pie-popup";
+        this.piePopup.style.display = "none";
+    }
+    changeMode(){
+        if (this.mode == "area"){
+            this.mode = "pie";
+            this.gCtx.clearRect(0, 0, this.graph.width, this.graph.height);
+            this.iCtx.clearRect(0, 0, this.info.width, this.info.height);
+            this.drawGraphWithAPie();
+            // hide popup
+            this.pCtx.clearRect(0, 0, this.popup.width, this.popup.height);
+            this.tooltip.style.display = "none";
+            this.zoomButton.style.display = "block";
+            this.periodText.style.display = "block";
+            this.drawDates(this.configureParametersForGraph());
+            this.popup.removeEventListener("click", this.boundChangeMode);
+            this.popup.addEventListener("click", this.boundSelectPieceOfPie);
+        } else {
+            this.mode = "area";
+            this.gCtx.clearRect(0, 0, this.graph.width, this.graph.height);
+            // TODO draw numbers 
+            this.drawGraph();
+            this.drawDates(this.configureParametersForGraph());
+            this.drawNumbers();
+            this.zoomButton.style.display = "none";
+            this.periodText.style.display = "none";
+            this.popup.addEventListener("click", this.boundChangeMode);
+            this.popup.removeEventListener("click", this.boundSelectPieceOfPie);
+        }
+    }
+    selectPieceOfPie(){
+        // check if the x/y are inside the circle
+        if (!this.selectedPie){
+            this.selectedPie = 0;
+        }
+        this.selectedPie += 1;
+        // if inactive += 1
+        if (this.selectedPie == this.lines.length){
+            this.selectedPie = -1;
+            this.selectPieceOfPie();
+        } else if (!this.lines[this.selectedPie].isActive){
+            this.selectPieceOfPie();
+        } else {
+            this.drawGraphWithAPie();
+            this.popPiePopup();
+
+        }
+        // if = lines length = set to 0 and repeat
+        // otherwise - redraw with this parameter
+
+        // scroll through them
     }
     configureParametersForGraph(){
         let parameters = super.configureParametersForGraph();
@@ -1852,31 +2065,48 @@ class areaChart extends Chart{
     }
     drawGraph(){
         let parameters = this.configureParametersForGraph();
-        // if (this.oldCeiling != parameters.ceiling) { // TODO consider code optimization with drawMinimap since it uses the same code
-        //     if (!this.animationActive){
+        this.gCtx.clearRect(0, 0, this.graph.width, this.graph.height);
+        let configuredArea = this.configureArea(parameters);
+        let percentLines = configuredArea[0];
+        let arrayOfOffsets = configuredArea[1];
 
-        //         this.animationActive = true;
-        //         this.animation(parameters);
+        if (!this.oldGraphPercentLines){
+            this.oldGraphPercentLines = percentLines; // used to track changes for animation
+        }
 
-        //         this.oldCeiling = parameters.ceiling; // NOTE that it will change before anim end
-        //     }
-        // } else {
-        //     parameters.ctx.clearRect(0, 0, this.graph.width, this.graph.height);
-        //     this.drawWithAnArea(parameters);
-        //     this.drawGraphWithAPie(parameters);
-        // }
-        this.drawWithAnArea(parameters);
+        if (!myMath.arraysOfArraysAreEqual(percentLines, this.oldGraphPercentLines)){
+            this.animation(parameters, this.oldGraphPercentLines, percentLines, arrayOfOffsets);
+            this.oldGraphPercentLines = percentLines;
+        } else {
+            this.sendAllActiveToDrawArea(parameters, percentLines, arrayOfOffsets);
+        }
+        
     }
     drawMinimap(){
         let parameters = this.configureParametersForMinimap();
 
         this.mCtx.clearRect(0, 0, this.minimap.width, this.minimap.height);
-        this.drawWithAnArea(parameters);
+        // this.drawWithAnArea(parameters);
+        let configuredArea = this.configureArea(parameters);
+        let percentLines = configuredArea[0];
+        let arrayOfOffsets = configuredArea[1];
+
+        if (!this.oldMinimapPercentLines){
+            this.oldMinimapPercentLines = percentLines; // used to track changes for animation
+        }
+
+        if (!myMath.arraysOfArraysAreEqual(percentLines, this.oldMinimapPercentLines)){
+            this.animation(parameters, this.oldMinimapPercentLines, percentLines, arrayOfOffsets);
+            this.oldMinimapPercentLines = percentLines;
+        } else {
+            this.sendAllActiveToDrawArea(parameters, percentLines, arrayOfOffsets);
+        }
     }
     animationFrame(parameters){
         this.drawWithAnArea(parameters);
     }
-    drawWithAnArea(parameters){
+    configureArea(parameters){
+        
         parameters.floorArray = this.lines[0];// floorArray;
         parameters.roofArray = this.lines[0];
         parameters.color = this.lines[0].color;
@@ -1906,14 +2136,20 @@ class areaChart extends Chart{
         for (let y = 0; y < this.lines.length; y++) {
             percentLines.push([]);
             for (let x = 0; x < this.x.length; x++){
-                percentLines[y].push(1 / sumArray[x] * this.lines[y].array[x]);
+                if (!this.lines[y].isActive){ // NOTE
+                    percentLines[y].push(0);
+                } else{
+                    percentLines[y].push(1 / sumArray[x] * this.lines[y].array[x]);
+                }
             }
+            // TODO if turned off - push all 0s
+            
         }
-
-
-        // STEP 3: for every Y - send that Y+corresponding Offset, then add to that offset
+        return [percentLines, arrayOfOffsets];
+    }
+    sendAllActiveToDrawArea(parameters, percentLines, arrayOfOffsets){
         for (let y = 0; y < percentLines.length; y++){
-            if (this.lines[y].isActive){
+            if (this.lines[y].isActive || this.lines[y] == this.justBeenRemoved){
                 parameters.arrayOfOffsets = arrayOfOffsets;
                 parameters.yArray = percentLines[y];
                 parameters.color = this.lines[y].color;
@@ -1921,22 +2157,39 @@ class areaChart extends Chart{
                 
             }
         }
-        
     }
-    drawGraphWithAPie(parameters){
-
-        // TODO gotta move some shit from drawing with an area
+    drawGraphOnMovement(){
+        this.drawDates(this.configureParametersForGraph());
+        if (this.mode == "pie"){
+            this.drawGraphWithAPie();
+        } else {
+            this.drawGraph();
+        }
+    }
+    drawGraphOnCheck(){
+        if (this.mode == "pie"){
+            this.drawGraphWithAPie();
+        } else {
+            this.drawGraph();
+        }
+    }
+    drawGraphWithAPie(){
+        let cutout = this.calculateCutout();
+        let xStart = cutout.sliderColumnStart;
+        let xEnd = cutout.sliderColumnEnd;
+        this.gCtx.clearRect(0, 0, this.graph.width, this.graph.height);
+        
         // sum up each array and find a relatinship and convert that to a percentarr
         let sum;
         let arrayOfSums = [];
         for (let y = 0; y < this.lines.length; y++){
             sum = 0;
-            for (let x = 0; x < this.x.length; x++) {
-                sum += this.lines[y].array[x];
+            if (this.lines[y].isActive){
+                for (let x = xStart; x < xEnd; x++) {
+                    sum += this.lines[y].array[x];
+                }
             }
-
             arrayOfSums.push(sum);
-            
         }
 
         let sumOfSums = 0; 
@@ -1952,10 +2205,10 @@ class areaChart extends Chart{
 
         let currentPieOffset = 0;
         for (let y = 0; y < percentPie.length; y++){
-            
-            this.drawPie(percentPie[y], currentPieOffset, this.lines[y].color);
-            currentPieOffset += percentPie[y];
-            
+            if(this.lines[y].isActive){
+                this.drawPie(percentPie[y], currentPieOffset, this.lines[y].color, y);
+                currentPieOffset += percentPie[y];
+            }
         }
 
     }
@@ -2004,7 +2257,7 @@ class areaChart extends Chart{
         // currentOffset - the areaHeight * percentage of all the previous lines
     }
 
-    drawPie(pieceOfPie, pieOffset, color){
+    drawPie(pieceOfPie, pieOffset, color, pieNum){
         // takes
         
         // takes a percentage value and starting radian
@@ -2013,9 +2266,17 @@ class areaChart extends Chart{
         let xPos = this.graph.width / 2;
         let yPos = this.graph.height / 2;
         
-        let radius = 150;
+        let radius = 120 * pixelRatio;
         let startAngle = pieOffset * Math.PI * 2;
         let endAngle = startAngle + Math.PI * 2 * pieceOfPie;
+
+        if (pieNum == this.selectedPie){
+            // ctx.fillStyle = "red";
+            xPos = (radius / 5) * Math.cos(startAngle + (endAngle - startAngle) / 2) + xPos;
+            yPos = (radius / 5) * Math.sin(startAngle + (endAngle - startAngle) / 2) + yPos;
+            // this.selectedPie = null;
+        }
+
 
         ctx.beginPath();
         ctx.arc(xPos, yPos, radius, startAngle, endAngle);
@@ -2026,15 +2287,78 @@ class areaChart extends Chart{
         ctx.closePath();
         ctx.fillStyle = color;
         ctx.fill();
+        // draw %% in the middle; font depends on the size
+        let fontSize = 16 * pixelRatio * Math.log10(pieceOfPie* 80);
+        pieceOfPie = Math.round(pieceOfPie * 100);
+        let text = `${pieceOfPie}%`;
+
+        let x = (radius / 2) * Math.cos(startAngle + (endAngle - startAngle) / 2) + xPos;
+        let y = (radius / 2) * Math.sin(startAngle + (endAngle - startAngle) / 2) + yPos;
+        // let adjustedX = (radius / 2) * Math.cos(startAngle + (endAngle - startAngle) / 2) +
+        //     (x - fontSize / 2);
+        // let adjustedY = (radius / 2) * Math.sin(startAngle + (endAngle - startAngle) / 2) +
+        //     (y + 1);
+        x = x - fontSize / 2;
+        y = y + fontSize / 2;
+        ctx.font = `${fontSize}px Verdana`;
+        ctx.fillStyle = "white";
+        // ctx.fillText (text, x, adjustedY);
+        ctx.fillText (text, x, y);
+        
+
         // ctx.strokeStyle = color;
         // ctx.stroke();
 
     }
     drawGraphPopup(currentArrayColumn, currentXPos, convertedYValue, conversionQuotient){
-        this.pCtx.clearRect(0, 0, this.popup.width, this.popup.height);
-        this.displayTooltip(currentArrayColumn, currentXPos / pixelRatio);
-        this.drawVerticalLine(currentXPos);
+        if (this.mode == "area"){
+            this.pCtx.clearRect(0, 0, this.popup.width, this.popup.height);
+            this.displayTooltip(currentArrayColumn, currentXPos / pixelRatio);
+            this.drawVerticalLine(currentXPos);
+        }
         // this.drawCircles(convertedYValue, conversionQuotient, currentXPos, currentArrayColumn);
+    }
+    popPiePopup(){
+        let parameters = this.configureParametersForGraph();
+
+        let left = this.piePopup.getBoundingClientRect().left;
+        let top = this.piePopup.getBoundingClientRect().top;
+        this.piePopup.style.left = window.event.clientX - left + "px";
+        this.piePopup.style.top = window.event.clientY - top + "px";
+
+        let name;
+        let style;
+        let percentage;
+        let sumOfItems = 0;
+
+        let sumOfCurArr = 0;
+        let averageOfCurArr = 0;
+        for (let i in this.lines){
+            if (this.lines[i].isActive){
+                for (let x = parameters.xStart; x < parameters.xEnd; x++){
+                    sumOfCurArr += this.lines[i]["array"][x];
+                }
+                averageOfCurArr = sumOfCurArr / (parameters.xEnd = parameters.xStart);
+                sumOfItems += averageOfCurArr; //this.lines[i]["array"][currentArrayColumn];
+                sumOfCurArr = 0;
+            }
+        }
+        // calc average from start to end
+        let sum = 0;
+        for (let x = parameters.xStart; x < parameters.xEnd; x++){
+            sum += this.lines[this.selectedPie]["array"][x];
+        }
+        let average = sum / (parameters.xEnd-parameters.xStart);
+
+
+        name = this.lines[this.selectedPie]["checkboxName"];
+        style = `margin: 10px; color: ${this.lines[this.selectedPie]["color"]}`;
+        percentage = (Math.round(100 / sumOfItems * average));
+
+        this.piePopup.innerHTML =
+            `<div style="${style}"><p class="item"><span class="percentage">${percentage}%</span><span class="name">${name}</span><p class="number">${average}</></div>`;
+        
+        // this.piePopup.style.display = "block";
     }
     addItemsToTooltip(currentArrayColumn){
         // Displaying each item
@@ -2129,6 +2453,36 @@ class areaChart extends Chart{
     //     this.iCtx.stroke();
 	  //     this.iCtx.globalAlpha = 1;
     // }
+    drawDates(parameters){
+        if (this.mode == "pie"){
+            let dateStart = new Date(this.x[parameters.xStart]);
+            dateStart = MONTHS[dateStart.getMonth()] + ' ' + dateStart.getDate();
+
+            let dateEnd = new Date(this.x[parameters.xEnd]);
+            dateEnd = MONTHS[dateEnd.getMonth()] + ' ' + dateEnd.getDate();
+            this.periodText.textContent = `${dateStart} - ${dateEnd}`;
+
+        } else {
+            super.drawDates(parameters);
+        }
+    }
+    animation(parameters, oldPercentLines, newPercentLines, arrayOfOffsets){
+        let arrayOfDistributedDifferences;
+        // take values from first
+        // note that it's an array of arrays; also that i cannot mutate the old one or new one
+        let clonedNewPercentLines = myMath.cloneNestedArray(newPercentLines);
+        myMath.subtractSecondArrayOfArraysFromFirst(clonedNewPercentLines, oldPercentLines);
+        // now that the clone is the difference, divide it by num of frames
+        myMath.divideArrayOfArraysByNum(clonedNewPercentLines, NUMOFFRAMES);
+        arrayOfDistributedDifferences = clonedNewPercentLines;
+
+        // so i can mutate it during animation
+        let clonedOldPercentLines = myMath.cloneNestedArray(oldPercentLines);
+
+        let currentFrame = 1;
+        drawAreaAnimation(parameters,  this, currentFrame, clonedOldPercentLines, arrayOfOffsets,
+                          arrayOfDistributedDifferences);
+    }
 }
 
 
