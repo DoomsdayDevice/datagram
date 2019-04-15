@@ -225,3 +225,20 @@ h1 {
 }
 
 
+.zoom-button {
+    position: absolute;
+    top: -5%;
+    left: 0;
+    font-size: 25px;
+    color: lightblue;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    margin-left: 10px;
+}
+.period-text{
+    position: absolute;
+    left: 73%;
+    top: 0;
+    font-size: 15px;
+    color: grey;
+}

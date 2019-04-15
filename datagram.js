@@ -91,8 +91,6 @@ const myMath = {
         return true;
     },
     arraysAreEqual(array1, array2){ // assuming same length
-        // console.log("arr 1:", array1);
-        // console.log("arr 2:", array2);
         if(!array2){
             return false;
         }
@@ -169,7 +167,6 @@ function initiateCharts(){
 function drawAreaAnimation(parameters, chart, currentFrame, oldPercentLines, arrayOfOffsets,
                            arrayOfDistributedDifferences){
     // currentArray = Old * distributedDifference;
-    // console.log("offsets at start of animation", arrayOfOffsets);
 
     if (currentFrame < NUMOFFRAMES){
         requestAnimationFrame(function(){
@@ -178,9 +175,7 @@ function drawAreaAnimation(parameters, chart, currentFrame, oldPercentLines, arr
         });
 
 
-        // console.log("FRAME:", currentFrame);
-        // console.log("offsets at this frame", arrayOfOffsets);
-        // cloning array of offsets before animation so it doesn't change it
+        // cloning array of offsets before animation so it doesn't mutate it
         let clonedArrayOfOffsets = [...arrayOfOffsets];
         chart.sendAllActiveToDrawArea(parameters, oldPercentLines, clonedArrayOfOffsets); // NOTE maybe clone
 
@@ -191,19 +186,11 @@ function drawAreaAnimation(parameters, chart, currentFrame, oldPercentLines, arr
         chart.justBeenRemoved = null;
         chart.justBeenSelected = null;
         chart.animationActive = false;
-        chart.drawGraph();
+        if (chart.mode == "area"){
+            chart.drawGraph();
+        }
+        chart.drawMinimap();
     }
-    
-
-
-    // // for all active and just removed - send to drawArea
-    // for (let y = 0; y < percentLines.length; y++){
-    //     if (this.lines[y].isActive){
-    //         parameters.arrayOfOffsets = arrayOfOffsets;
-    //         parameters.yArray = percentLines[y];
-    //         parameters.color = this.lines[y].color;
-    //         this.drawArea(parameters);
-    //     }
 }
 function drawAnimation2Y(parametersFirst, parametersSecond, chart, currentOldCeilingFirst,
                          currentOldCeilingSecond, distributedDifferenceFirst,
@@ -1295,7 +1282,6 @@ class Chart{
     drawCircles(conversionQuotient, currentXPos, currentArrayColumn){
         // drawing the circles for each line based on its configuration
         let convertedYValue;
-        console.log("circles", conversionQuotient, currentXPos, currentArrayColumn);
         for (let i in this.lines){
             if (this.lines[i].isActive){
                 convertedYValue =
@@ -1495,7 +1481,7 @@ class lineChart extends Chart{
 
 class line2YChart extends Chart{
     constructor(data){
-        let title = "2Y Chart";
+        let title = "There Was an Attempt";
         super(data, title);
 
         // VARS
@@ -1600,7 +1586,6 @@ class line2YChart extends Chart{
             parametersFirst.onButtonPress = true;
             parametersSecond.onButtonPress = true;
         }
-        console.log("we launch draw graph");
 
 
         if (this.oldCeilingFirst != parametersFirst.ceiling || this.oldCeilingSecond != parametersSecond.ceiling || onButtonPress) { // TODO consider code optimization with drawMinimap since it uses the same code
@@ -1652,7 +1637,6 @@ class line2YChart extends Chart{
         // } else if (this.lines[i] == this.justBeenRemoved && parameters.onButtonPress){
         //     // parameters.ctx.globalAlpha = 1 - 1 / NUMOFFRAMES * parameters.currentFrame;
         // }
-        console.log("we're launch animation frame");
 
         if (this.lines[0].isActive || this.lines[0] == this.justBeenRemoved){
             if (this.lines[0] == this.justBeenSelected && parametersFirst.onButtonPress){
@@ -1999,8 +1983,47 @@ class areaChart extends Chart{
         let title = "Not the Kind of Fruit Pies I Like";
         super(data, title);
 
-        // this.popup.addEventListener("click", this.drawGraphWithAPie.bind(this));
+        this.popup.addEventListener("click", this.changeMode.bind(this));
         // this.popup.addEventListener("touchstart", this.drawGraphWithAPie.bind(this));
+        this.mode = "area";
+
+
+        // adding the zoom button 
+        this.zoomButton = document.createElement("button");
+        this.canvases.appendChild(this.zoomButton);
+        this.zoomButton.className = "zoom-button";
+        this.zoomButton.textContent = "Zoom Out";
+        this.zoomButton.style.display = "none";
+        this.zoomButton.addEventListener("click", this.changeMode.bind(this));
+
+        this.periodText = document.createElement("p");
+        this.canvases.appendChild(this.periodText);
+        this.periodText.className = "period-text";
+        this.periodText.textContent = "ssanina";
+        this.periodText.style.display = "none";
+    }
+    changeMode(){
+        if (this.mode == "area"){
+            this.mode = "pie";
+            this.gCtx.clearRect(0, 0, this.graph.width, this.graph.height);
+            this.iCtx.clearRect(0, 0, this.info.width, this.info.height);
+            this.drawGraphWithAPie();
+            // hide popup
+            this.pCtx.clearRect(0, 0, this.popup.width, this.popup.height);
+            this.tooltip.style.display = "none";
+            this.zoomButton.style.display = "block";
+            this.periodText.style.display = "block";
+            this.drawDates(this.configureParametersForGraph());
+        } else {
+            this.mode = "area";
+            this.gCtx.clearRect(0, 0, this.graph.width, this.graph.height);
+            // TODO draw numbers 
+            this.drawGraph();
+            this.drawDates(this.configureParametersForGraph());
+            this.drawNumbers();
+            this.zoomButton.style.display = "none";
+            this.periodText.style.display = "none";
+        }
     }
     configureParametersForGraph(){
         let parameters = super.configureParametersForGraph();
@@ -2008,20 +2031,8 @@ class areaChart extends Chart{
         return parameters;
     }
     drawGraph(){
+        console.log("we draw graph nao");
         let parameters = this.configureParametersForGraph();
-        // if (this.oldCeiling != parameters.ceiling) { // TODO consider code optimization with drawMinimap since it uses the same code
-        //     if (!this.animationActive){
-
-        //         this.animationActive = true;
-        //         this.animation(parameters);
-
-        //         this.oldCeiling = parameters.ceiling; // NOTE that it will change before anim end
-        //     }
-        // } else {
-        //     parameters.ctx.clearRect(0, 0, this.graph.width, this.graph.height);
-        //     this.drawWithAnArea(parameters);
-        //     this.drawGraphWithAPie(parameters);
-        // }
         this.gCtx.clearRect(0, 0, this.graph.width, this.graph.height);
         let configuredArea = this.configureArea(parameters);
         let percentLines = configuredArea[0];
@@ -2115,20 +2126,38 @@ class areaChart extends Chart{
             }
         }
     }
-    drawGraphWithAPie(parameters){
-
-        // TODO gotta move some shit from drawing with an area
+    drawGraphOnMovement(){
+        this.drawDates(this.configureParametersForGraph());
+        if (this.mode == "pie"){
+            this.drawGraphWithAPie();
+        } else {
+            this.drawGraph();
+        }
+    }
+    drawGraphOnCheck(){
+        if (this.mode == "pie"){
+            this.drawGraphWithAPie();
+        } else {
+            console.log("ELSE");
+            this.drawGraph();
+        }
+    }
+    drawGraphWithAPie(){
+        let cutout = this.calculateCutout();
+        let xStart = cutout.sliderColumnStart;
+        let xEnd = cutout.sliderColumnEnd;
+        
         // sum up each array and find a relatinship and convert that to a percentarr
         let sum;
         let arrayOfSums = [];
         for (let y = 0; y < this.lines.length; y++){
             sum = 0;
-            for (let x = 0; x < this.x.length; x++) {
-                sum += this.lines[y].array[x];
+            if (this.lines[y].isActive){
+                for (let x = xStart; x < xEnd; x++) {
+                    sum += this.lines[y].array[x];
+                }
             }
-
             arrayOfSums.push(sum);
-            
         }
 
         let sumOfSums = 0; 
@@ -2144,10 +2173,10 @@ class areaChart extends Chart{
 
         let currentPieOffset = 0;
         for (let y = 0; y < percentPie.length; y++){
-            
-            this.drawPie(percentPie[y], currentPieOffset, this.lines[y].color);
-            currentPieOffset += percentPie[y];
-            
+            if(this.lines[y].isActive){
+                this.drawPie(percentPie[y], currentPieOffset, this.lines[y].color);
+                currentPieOffset += percentPie[y];
+            }
         }
 
     }
@@ -2169,8 +2198,6 @@ class areaChart extends Chart{
 
         let currentY;
         let currentX = xStartPoint - xOffset;
-        // console.log("offssets", arrayOfOffsets);
-        // console.log("yArr", yArray);
 
         ctx.beginPath();
 
@@ -2207,7 +2234,7 @@ class areaChart extends Chart{
         let xPos = this.graph.width / 2;
         let yPos = this.graph.height / 2;
         
-        let radius = 150;
+        let radius = 150 * pixelRatio;
         let startAngle = pieOffset * Math.PI * 2;
         let endAngle = startAngle + Math.PI * 2 * pieceOfPie;
 
@@ -2220,14 +2247,35 @@ class areaChart extends Chart{
         ctx.closePath();
         ctx.fillStyle = color;
         ctx.fill();
+        // draw %% in the middle; font depends on the size
+        let fontSize = 16 * pixelRatio * Math.log10(pieceOfPie* 80);
+        pieceOfPie = Math.round(pieceOfPie * 100);
+        let text = `${pieceOfPie}%`;
+
+        let x = (radius / 2) * Math.cos(startAngle + (endAngle - startAngle) / 2) + xPos;
+        let y = (radius / 2) * Math.sin(startAngle + (endAngle - startAngle) / 2) + yPos;
+        // let adjustedX = (radius / 2) * Math.cos(startAngle + (endAngle - startAngle) / 2) +
+        //     (x - fontSize / 2);
+        // let adjustedY = (radius / 2) * Math.sin(startAngle + (endAngle - startAngle) / 2) +
+        //     (y + 1);
+        x = x - fontSize / 2;
+        y = y + fontSize / 2;
+        ctx.font = `${fontSize}px Verdana`;
+        ctx.fillStyle = "white";
+        // ctx.fillText (text, x, adjustedY);
+        ctx.fillText (text, x, y);
+        
+
         // ctx.strokeStyle = color;
         // ctx.stroke();
 
     }
     drawGraphPopup(currentArrayColumn, currentXPos, convertedYValue, conversionQuotient){
-        this.pCtx.clearRect(0, 0, this.popup.width, this.popup.height);
-        this.displayTooltip(currentArrayColumn, currentXPos / pixelRatio);
-        this.drawVerticalLine(currentXPos);
+        if (this.mode == "area"){
+            this.pCtx.clearRect(0, 0, this.popup.width, this.popup.height);
+            this.displayTooltip(currentArrayColumn, currentXPos / pixelRatio);
+            this.drawVerticalLine(currentXPos);
+        }
         // this.drawCircles(convertedYValue, conversionQuotient, currentXPos, currentArrayColumn);
     }
     addItemsToTooltip(currentArrayColumn){
@@ -2323,6 +2371,19 @@ class areaChart extends Chart{
     //     this.iCtx.stroke();
 	  //     this.iCtx.globalAlpha = 1;
     // }
+    drawDates(parameters){
+        if (this.mode == "pie"){
+            let dateStart = new Date(this.x[parameters.xStart]);
+            dateStart = MONTHS[dateStart.getMonth()] + ' ' + dateStart.getDate();
+
+            let dateEnd = new Date(this.x[parameters.xEnd]);
+            dateEnd = MONTHS[dateEnd.getMonth()] + ' ' + dateEnd.getDate();
+            this.periodText.textContent = `${dateStart} - ${dateEnd}`;
+
+        } else {
+            super.drawDates(parameters);
+        }
+    }
     animation(parameters, oldPercentLines, newPercentLines, arrayOfOffsets){
         let arrayOfDistributedDifferences;
         // take values from first
