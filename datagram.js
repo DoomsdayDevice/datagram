@@ -146,8 +146,10 @@ function drawAnimation2Y(parametersFirst, parametersSecond, chart, currentOldCei
         
         parametersFirst.ctx.clearRect(0, 0, parametersFirst.xEndPoint, parametersFirst.yEndPoint);
 
+        // parametersFirst.ceiling = currentOldCeilingFirst + (distributedDifferenceFirst * currentFrame);
         parametersFirst.ceiling = currentOldCeilingFirst + (distributedDifferenceFirst * currentFrame);
-        parametersFirst.ceiling = currentOldCeilingFirst + (distributedDifferenceFirst * currentFrame);
+        // TODO weird, why do i not set param second ceiling?
+        parametersFirst.currentFrame = currentFrame;
         chart.animationFrame(parametersFirst, parametersSecond);
         
         
@@ -163,6 +165,8 @@ function drawAnimation2Y(parametersFirst, parametersSecond, chart, currentOldCei
         // chart.drawNumbers(currentOldCeilingSecond, newOldRelationshipSecond, currentFrame, "R");
         chart.drawNumbers(currentFutureCeilingSecond, newOldRelationshipSecond, currentFrame, "R");
     } else {
+        chart.justBeenRemoved = null;
+        chart.justBeenSelected = null;
         chart.animationActive = false;
         chart.drawGraph();
         // chart.drawLinesForAllActiveArrays(parameters); // TODO drawgraph or this hmmm
@@ -1195,8 +1199,10 @@ class Chart{
             }
         }
     }
-    drawCircles(convertedYValue, conversionQuotient, currentXPos, currentArrayColumn){
+    drawCircles(conversionQuotient, currentXPos, currentArrayColumn){
         // drawing the circles for each line based on its configuration
+        let convertedYValue;
+        console.log("circles", conversionQuotient, currentXPos, currentArrayColumn);
         for (let i in this.lines){
             if (this.lines[i].isActive){
                 convertedYValue =
@@ -1207,10 +1213,11 @@ class Chart{
 
                 this.pCtx.beginPath();
                 this.pCtx.arc(currentXPos, convertedYValue,
-                              10, 0, Math.PI * 2);
+                              6 * pixelRatio, 0, Math.PI * 2);
                 this.pCtx.fillStyle = getComputedStyle(document.body).backgroundColor;
                 this.pCtx.strokeStyle = this.lines[i]["color"];
                 this.pCtx.fill();
+                this.pCtx.lineWidth = 2 * pixelRatio;
                 this.pCtx.stroke();
                 this.pCtx.fillStyle = "black";
 
@@ -1252,7 +1259,7 @@ class Chart{
         // TODO [#A] where do i get the old ceiling for the popup?
         let conversionQuotient = (this.graph.height - DATESPACE) / ceiling;
 
-        let convertedYValue;
+        // let convertedYValue;
 
         // TODO optimize this code for offset
         let xOffset = cutout.sliderOffset / this.minimap.width * this.graph.width;
@@ -1261,14 +1268,14 @@ class Chart{
 
         let currentXPos = currentGraphColumn * columnWidth - xOffset;
         
-        this.drawGraphPopup(currentArrayColumn, currentXPos, convertedYValue, conversionQuotient);
+        this.drawGraphPopup(currentArrayColumn, currentXPos, conversionQuotient);
 
     }
-    drawGraphPopup(currentArrayColumn, currentXPos, convertedYValue, conversionQuotient){
+    drawGraphPopup(currentArrayColumn, currentXPos, conversionQuotient){
         this.pCtx.clearRect(0, 0, this.popup.width, this.popup.height);
         this.displayTooltip(currentArrayColumn, currentXPos / pixelRatio);
         this.drawVerticalLine(currentXPos);
-        this.drawCircles(convertedYValue, conversionQuotient, currentXPos, currentArrayColumn);
+        this.drawCircles(conversionQuotient, currentXPos, currentArrayColumn);
     }
     isAnyArrayActive(){
         for (let i in this.lines){
@@ -1500,9 +1507,10 @@ class line2YChart extends Chart{
             parametersFirst.onButtonPress = true;
             parametersSecond.onButtonPress = true;
         }
+        console.log("we launch draw graph");
 
 
-        if (this.oldCeilingFirst != parametersFirst.ceiling || this.oldCeilingSecond != parametersSecond.ceiling) { // TODO consider code optimization with drawMinimap since it uses the same code
+        if (this.oldCeilingFirst != parametersFirst.ceiling || this.oldCeilingSecond != parametersSecond.ceiling || onButtonPress) { // TODO consider code optimization with drawMinimap since it uses the same code
             if (!this.animationActive){
 
                 this.animationActive = true;
@@ -1546,21 +1554,72 @@ class line2YChart extends Chart{
         this.drawLine(parameters);
     }
     animationFrame(parametersFirst, parametersSecond){
-        // if (this.lines[i].isActive || this.lines[i] == this.justBeenRemoved) {
-        //     // when turning a line on/off
-        //     if (this.lines[i] == this.justBeenSelected && parameters.onButtonPress){
-        //         parameters.ctx.globalAlpha = 1 / NUMOFFRAMES * parameters.currentFrame;
-        //     } else if (this.lines[i] == this.justBeenRemoved && parameters.onButtonPress){
-        //         parameters.ctx.globalAlpha = 1 - 1 / NUMOFFRAMES * parameters.currentFrame;
-        //     }
+        // if (this.lines[i] == this.justBeenSelected && parameters.onButtonPress){
+        //     // parameters.ctx.globalAlpha = 1 / NUMOFFRAMES * parameters.currentFrame;
+        // } else if (this.lines[i] == this.justBeenRemoved && parameters.onButtonPress){
+        //     // parameters.ctx.globalAlpha = 1 - 1 / NUMOFFRAMES * parameters.currentFrame;
         // }
-        if (this.lines[0].isActive){
+        console.log("we're launch animation frame");
+
+        if (this.lines[0].isActive || this.lines[0] == this.justBeenRemoved){
+            if (this.lines[0] == this.justBeenSelected && parametersFirst.onButtonPress){
+                parametersFirst.ctx.globalAlpha = 1 / NUMOFFRAMES * parametersFirst.currentFrame;
+            } else if (this.lines[0] == this.justBeenRemoved && parametersFirst.onButtonPress) {
+                parametersFirst.ctx.globalAlpha = 1 - 1 / NUMOFFRAMES * parametersFirst.currentFrame;
+            }
             this.drawLine2Y(parametersFirst);
         }
-        if (this.lines[1].isActive){
+        parametersFirst.ctx.globalAlpha = 1;
+
+        if (this.lines[1].isActive || this.lines[1] == this.justBeenRemoved){
+            if (this.lines[1] == this.justBeenSelected && parametersSecond.onButtonPress){
+                parametersFirst.ctx.globalAlpha = 1 / NUMOFFRAMES * parametersFirst.currentFrame;
+            } else if (this.lines[1] == this.justBeenRemoved && parametersFirst.onButtonPress) {
+                parametersFirst.ctx.globalAlpha = 1 - 1 / NUMOFFRAMES * parametersFirst.currentFrame;
+            }
             this.drawLine2Y(parametersSecond);
         }
+        parametersFirst.ctx.globalAlpha = 1;
     }
+    drawCircles(conversionQuotient, currentXPos, currentArrayColumn){
+        // drawing the circles for each line based on its configuration
+        let convertedYValue;
+        let ceilingFirst = this.configureParametersForGraphFirst().ceiling;
+        let ceilingSecond = this.configureParametersForGraphSecond().ceiling;
+        let conversionQuotientFirst = (this.graph.height - DATESPACE) / ceilingFirst;
+        let conversionQuotientSecond = (this.graph.height - DATESPACE) / ceilingSecond;
+
+        let convertedYValueFirst =
+            this.graph.height - this.lines[0]["array"][currentArrayColumn] *
+            conversionQuotientFirst - DATESPACE;
+        let convertedYValueSecond =
+            this.graph.height - this.lines[1]["array"][currentArrayColumn] *
+            conversionQuotientSecond - DATESPACE;
+        for (let i in this.lines){
+            if (this.lines[i].isActive){
+
+                if (i == 0){
+                    convertedYValue = convertedYValueFirst;
+                } else {
+                    convertedYValue = convertedYValueSecond;
+                }
+
+
+                this.pCtx.beginPath();
+                this.pCtx.arc(currentXPos, convertedYValue,
+                              6 * pixelRatio, 0, Math.PI * 2);
+                this.pCtx.fillStyle = getComputedStyle(document.body).backgroundColor;
+                this.pCtx.strokeStyle = this.lines[i]["color"];
+                this.pCtx.fill();
+                this.pCtx.lineWidth = 2 * pixelRatio;
+                this.pCtx.stroke();
+                this.pCtx.fillStyle = "black";
+
+
+            }
+        }
+
+    };
 }
 
 
