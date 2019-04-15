@@ -81,6 +81,60 @@ const myMath = {
         }
 
         return n.toString();
+    },
+    arraysOfArraysAreEqual(array1, array2){ // assuming same length
+        for (let x = 0; x < array1.length; x++){
+            if(!myMath.arraysAreEqual(array1[x], array2[x])){
+                return false;
+            }
+        }
+        return true;
+    },
+    arraysAreEqual(array1, array2){ // assuming same length
+        // console.log("arr 1:", array1);
+        // console.log("arr 2:", array2);
+        if(!array2){
+            return false;
+        }
+        for (let x = 0; x < array1.length; x++){
+            if (array1[x] != array2[x]){return false;};
+        }
+        return true;
+    },
+    subtractSecondArrayOfArraysFromFirst(array1, array2){
+        for(let x = 0; x < array1.length; x++){
+            myMath.subtractSecondFromFirst(array1[x], array2[x]);
+        }
+    },
+    subtractSecondFromFirst(array1, array2){
+        for(let x = 0; x < array1.length; x++){
+            array1[x] -= array2[x];
+        }
+
+    },
+
+    divideArrayOfArraysByNum(array1, num){
+        for(let x = 0; x < array1.length; x++){
+            myMath.divideArrayByNum(array1[x], num);
+        }
+    },
+    divideArrayByNum(array1, num){
+        for (let x = 0; x < array1.length; x++){
+            array1[x] /= num;
+        }
+    },
+    cloneNestedArray(array){
+        let clone = [];
+        for (let x = 0; x < array.length; x++){
+            clone.push([...array[x]]);
+        }
+        return clone;
+
+    },
+    addSecondNestedArrayToFirst(array1, array2){
+        for(let x = 0; x < array1.length; x++){
+            myMath.addSecondArrayToFirst(array1[x], array2[x]);
+        }
     }
 };
 
@@ -112,6 +166,45 @@ function initiateCharts(){
 
 }
 
+function drawAreaAnimation(parameters, chart, currentFrame, oldPercentLines, arrayOfOffsets,
+                           arrayOfDistributedDifferences){
+    // currentArray = Old * distributedDifference;
+    // console.log("offsets at start of animation", arrayOfOffsets);
+
+    if (currentFrame < NUMOFFRAMES){
+        requestAnimationFrame(function(){
+            drawAreaAnimation(parameters, chart, currentFrame, oldPercentLines, arrayOfOffsets,
+                              arrayOfDistributedDifferences);
+        });
+
+
+        // console.log("FRAME:", currentFrame);
+        // console.log("offsets at this frame", arrayOfOffsets);
+        // cloning array of offsets before animation so it doesn't change it
+        let clonedArrayOfOffsets = [...arrayOfOffsets];
+        chart.sendAllActiveToDrawArea(parameters, oldPercentLines, clonedArrayOfOffsets); // NOTE maybe clone
+
+        // add distributed difference to the old array
+        myMath.addSecondNestedArrayToFirst(oldPercentLines, arrayOfDistributedDifferences); 
+        currentFrame += 1;
+    } else {
+        chart.justBeenRemoved = null;
+        chart.justBeenSelected = null;
+        chart.animationActive = false;
+        chart.drawGraph();
+    }
+    
+
+
+    // // for all active and just removed - send to drawArea
+    // for (let y = 0; y < percentLines.length; y++){
+    //     if (this.lines[y].isActive){
+    //         parameters.arrayOfOffsets = arrayOfOffsets;
+    //         parameters.yArray = percentLines[y];
+    //         parameters.color = this.lines[y].color;
+    //         this.drawArea(parameters);
+    //     }
+}
 function drawAnimation2Y(parametersFirst, parametersSecond, chart, currentOldCeilingFirst,
                          currentOldCeilingSecond, distributedDifferenceFirst,
                          distributedDifferenceSecond, currentFrame, currentFutureCeilingFirst,
@@ -1761,8 +1854,13 @@ class stackedBarChart extends barChart{
         this.mCtx.clearRect(0, 0, this.minimap.width, this.minimap.height);
 
         let ceiling = this.findPrettyMax(0, this.x.length); //recal ceiling
-        parameters.ceiling = ceiling;
-        this.drawStackedBars(parameters);
+        // parameters.ceiling = ceiling;
+        if (this.oldMinimapCeiling != parameters.ceiling) {
+            this.animation(parameters);
+            this.oldMinimapCeiling  = parameters.ceiling;
+        } else {
+            this.drawStackedBars(parameters);
+        }
     }
     drawStackedBars(parameters){ // PARENTS: drawMinimap, drawGraph
         // array, starts at all 0s
@@ -1965,14 +2063,39 @@ class areaChart extends Chart{
         for (let y = 0; y < this.lines.length; y++) {
             percentLines.push([]);
             for (let x = 0; x < this.x.length; x++){
-                percentLines[y].push(1 / sumArray[x] * this.lines[y].array[x]);
+                if (!this.lines[y].isActive){ // NOTE
+                    percentLines[y].push(0);
+                } else{
+                    percentLines[y].push(1 / sumArray[x] * this.lines[y].array[x]);
+                }
             }
+            // TODO if turned off - push all 0s
+            
         }
 
+        // if launching for the first time
+        if (!this.oldPercentLines){
+            this.oldPercentLines = percentLines; // used to track changes for animation
+        }
 
         // STEP 3: for every Y - send that Y+corresponding Offset, then add to that offset
+        // store percent array as old
+        // if the new one is different from old - send to animation
+
+
+        if (!myMath.arraysOfArraysAreEqual(percentLines, this.oldPercentLines)){
+            this.animation(parameters, this.oldPercentLines, percentLines, arrayOfOffsets);
+            this.oldPercentLines = percentLines;
+            // this.sendAllActiveToDrawArea(parameters, percentLines, arrayOfOffsets);
+        } else {
+            this.sendAllActiveToDrawArea(parameters, percentLines, arrayOfOffsets);
+        }
+        // this.oldPercentLines = percentLines;
+        
+    }
+    sendAllActiveToDrawArea(parameters, percentLines, arrayOfOffsets){
         for (let y = 0; y < percentLines.length; y++){
-            if (this.lines[y].isActive){
+            if (this.lines[y].isActive || this.lines[y] == this.justBeenRemoved){
                 parameters.arrayOfOffsets = arrayOfOffsets;
                 parameters.yArray = percentLines[y];
                 parameters.color = this.lines[y].color;
@@ -1980,7 +2103,6 @@ class areaChart extends Chart{
                 
             }
         }
-        
     }
     drawGraphWithAPie(parameters){
 
@@ -2036,6 +2158,8 @@ class areaChart extends Chart{
 
         let currentY;
         let currentX = xStartPoint - xOffset;
+        // console.log("offssets", arrayOfOffsets);
+        // console.log("yArr", yArray);
 
         ctx.beginPath();
 
@@ -2188,6 +2312,34 @@ class areaChart extends Chart{
     //     this.iCtx.stroke();
 	  //     this.iCtx.globalAlpha = 1;
     // }
+    animation(parameters, oldPercentLines, newPercentLines, arrayOfOffsets){
+        // let New;
+        // let Old;
+        // let distributedDifference = (New - Old) / NUMOFFRAMES;
+        
+
+        // console.log("offsets at animation()", arrayOfOffsets);
+
+        let arrayOfDistributedDifferences;
+        // take values from first
+        // note that it's an array of arrays; also that i cannot mutate the old one or new one
+        // NOTE i can just mutate the cloned old arrays and add dist difference to it
+        let clonedNewPercentLines = myMath.cloneNestedArray(newPercentLines);
+        myMath.subtractSecondArrayOfArraysFromFirst(clonedNewPercentLines, oldPercentLines);
+        // now that the clone is the difference, divide it by num of frames
+        myMath.divideArrayOfArraysByNum(clonedNewPercentLines, NUMOFFRAMES);
+        arrayOfDistributedDifferences = clonedNewPercentLines;
+
+        
+        // so i can mutate it during animation
+        let clonedOldPercentLines = myMath.cloneNestedArray(oldPercentLines);
+
+        let currentFrame = 1;
+        drawAreaAnimation(parameters,  this, currentFrame, clonedOldPercentLines, arrayOfOffsets,
+                          arrayOfDistributedDifferences);
+        // drawAreaAnimation(parameters,  this, currentFrame, newPercentLines, arrayOfOffsets,
+        //                  arrayOfDistributedDifferences);
+    }
 }
 
 
@@ -2296,7 +2448,7 @@ function importDays(chartNumber, whereToAppend){
 // initiateCharts();
 
 // initiate each chart; also appends each to arrayOfNewCharts
-for (let c = 1; c <= 5; c++) {
+for (let c = 5; c <= 5; c++) {
     initiateNewCharts(c);
 }
 putThemeButton();
