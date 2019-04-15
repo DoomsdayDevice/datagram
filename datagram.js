@@ -2022,18 +2022,48 @@ class areaChart extends Chart{
         //     this.drawWithAnArea(parameters);
         //     this.drawGraphWithAPie(parameters);
         // }
-        this.drawWithAnArea(parameters);
+        this.gCtx.clearRect(0, 0, this.graph.width, this.graph.height);
+        let configuredArea = this.configureArea(parameters);
+        let percentLines = configuredArea[0];
+        let arrayOfOffsets = configuredArea[1];
+
+        if (!this.oldGraphPercentLines){
+            this.oldGraphPercentLines = percentLines; // used to track changes for animation
+        }
+
+        if (!myMath.arraysOfArraysAreEqual(percentLines, this.oldGraphPercentLines)){
+            this.animation(parameters, this.oldGraphPercentLines, percentLines, arrayOfOffsets);
+            this.oldGraphPercentLines = percentLines;
+        } else {
+            this.sendAllActiveToDrawArea(parameters, percentLines, arrayOfOffsets);
+        }
+        
     }
     drawMinimap(){
         let parameters = this.configureParametersForMinimap();
 
         this.mCtx.clearRect(0, 0, this.minimap.width, this.minimap.height);
-        this.drawWithAnArea(parameters);
+        // this.drawWithAnArea(parameters);
+        let configuredArea = this.configureArea(parameters);
+        let percentLines = configuredArea[0];
+        let arrayOfOffsets = configuredArea[1];
+
+        if (!this.oldMinimapPercentLines){
+            this.oldMinimapPercentLines = percentLines; // used to track changes for animation
+        }
+
+        if (!myMath.arraysOfArraysAreEqual(percentLines, this.oldMinimapPercentLines)){
+            this.animation(parameters, this.oldMinimapPercentLines, percentLines, arrayOfOffsets);
+            this.oldMinimapPercentLines = percentLines;
+        } else {
+            this.sendAllActiveToDrawArea(parameters, percentLines, arrayOfOffsets);
+        }
     }
     animationFrame(parameters){
         this.drawWithAnArea(parameters);
     }
-    drawWithAnArea(parameters){
+    configureArea(parameters){
+        
         parameters.floorArray = this.lines[0];// floorArray;
         parameters.roofArray = this.lines[0];
         parameters.color = this.lines[0].color;
@@ -2072,26 +2102,7 @@ class areaChart extends Chart{
             // TODO if turned off - push all 0s
             
         }
-
-        // if launching for the first time
-        if (!this.oldPercentLines){
-            this.oldPercentLines = percentLines; // used to track changes for animation
-        }
-
-        // STEP 3: for every Y - send that Y+corresponding Offset, then add to that offset
-        // store percent array as old
-        // if the new one is different from old - send to animation
-
-
-        if (!myMath.arraysOfArraysAreEqual(percentLines, this.oldPercentLines)){
-            this.animation(parameters, this.oldPercentLines, percentLines, arrayOfOffsets);
-            this.oldPercentLines = percentLines;
-            // this.sendAllActiveToDrawArea(parameters, percentLines, arrayOfOffsets);
-        } else {
-            this.sendAllActiveToDrawArea(parameters, percentLines, arrayOfOffsets);
-        }
-        // this.oldPercentLines = percentLines;
-        
+        return [percentLines, arrayOfOffsets];
     }
     sendAllActiveToDrawArea(parameters, percentLines, arrayOfOffsets){
         for (let y = 0; y < percentLines.length; y++){
@@ -2313,32 +2324,21 @@ class areaChart extends Chart{
 	  //     this.iCtx.globalAlpha = 1;
     // }
     animation(parameters, oldPercentLines, newPercentLines, arrayOfOffsets){
-        // let New;
-        // let Old;
-        // let distributedDifference = (New - Old) / NUMOFFRAMES;
-        
-
-        // console.log("offsets at animation()", arrayOfOffsets);
-
         let arrayOfDistributedDifferences;
         // take values from first
         // note that it's an array of arrays; also that i cannot mutate the old one or new one
-        // NOTE i can just mutate the cloned old arrays and add dist difference to it
         let clonedNewPercentLines = myMath.cloneNestedArray(newPercentLines);
         myMath.subtractSecondArrayOfArraysFromFirst(clonedNewPercentLines, oldPercentLines);
         // now that the clone is the difference, divide it by num of frames
         myMath.divideArrayOfArraysByNum(clonedNewPercentLines, NUMOFFRAMES);
         arrayOfDistributedDifferences = clonedNewPercentLines;
 
-        
         // so i can mutate it during animation
         let clonedOldPercentLines = myMath.cloneNestedArray(oldPercentLines);
 
         let currentFrame = 1;
         drawAreaAnimation(parameters,  this, currentFrame, clonedOldPercentLines, arrayOfOffsets,
                           arrayOfDistributedDifferences);
-        // drawAreaAnimation(parameters,  this, currentFrame, newPercentLines, arrayOfOffsets,
-        //                  arrayOfDistributedDifferences);
     }
 }
 
