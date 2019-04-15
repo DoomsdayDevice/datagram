@@ -1983,7 +1983,9 @@ class areaChart extends Chart{
         let title = "Not the Kind of Fruit Pies I Like";
         super(data, title);
 
-        this.popup.addEventListener("click", this.changeMode.bind(this));
+        this.boundChangeMode = this.changeMode.bind(this);
+        this.boundSelectPieceOfPie = this.selectPieceOfPie.bind(this);
+        this.popup.addEventListener("click", this.boundChangeMode);
         // this.popup.addEventListener("touchstart", this.drawGraphWithAPie.bind(this));
         this.mode = "area";
 
@@ -2001,6 +2003,11 @@ class areaChart extends Chart{
         this.periodText.className = "period-text";
         this.periodText.textContent = "ssanina";
         this.periodText.style.display = "none";
+
+        this.piePopup = document.createElement("div");
+        this.canvases.appendChild(this.piePopup);
+        this.piePopup.className = "pie-popup";
+        this.piePopup.style.display = "none";
     }
     changeMode(){
         if (this.mode == "area"){
@@ -2014,6 +2021,8 @@ class areaChart extends Chart{
             this.zoomButton.style.display = "block";
             this.periodText.style.display = "block";
             this.drawDates(this.configureParametersForGraph());
+            this.popup.removeEventListener("click", this.boundChangeMode);
+            this.popup.addEventListener("click", this.boundSelectPieceOfPie);
         } else {
             this.mode = "area";
             this.gCtx.clearRect(0, 0, this.graph.width, this.graph.height);
@@ -2023,7 +2032,31 @@ class areaChart extends Chart{
             this.drawNumbers();
             this.zoomButton.style.display = "none";
             this.periodText.style.display = "none";
+            this.popup.addEventListener("click", this.boundChangeMode);
+            this.popup.removeEventListener("click", this.boundSelectPieceOfPie);
         }
+    }
+    selectPieceOfPie(){
+        // check if the x/y are inside the circle
+        if (!this.selectedPie){
+            this.selectedPie = 0;
+        }
+        this.selectedPie += 1;
+        // if inactive += 1
+        if (this.selectedPie == this.lines.length){
+            this.selectedPie = -1;
+            this.selectPieceOfPie();
+        } else if (!this.lines[this.selectedPie].isActive){
+            this.selectPieceOfPie();
+        } else {
+            this.drawGraphWithAPie();
+            this.popPiePopup();
+
+        }
+        // if = lines length = set to 0 and repeat
+        // otherwise - redraw with this parameter
+
+        // scroll through them
     }
     configureParametersForGraph(){
         let parameters = super.configureParametersForGraph();
@@ -2031,7 +2064,6 @@ class areaChart extends Chart{
         return parameters;
     }
     drawGraph(){
-        console.log("we draw graph nao");
         let parameters = this.configureParametersForGraph();
         this.gCtx.clearRect(0, 0, this.graph.width, this.graph.height);
         let configuredArea = this.configureArea(parameters);
@@ -2138,7 +2170,6 @@ class areaChart extends Chart{
         if (this.mode == "pie"){
             this.drawGraphWithAPie();
         } else {
-            console.log("ELSE");
             this.drawGraph();
         }
     }
@@ -2146,6 +2177,7 @@ class areaChart extends Chart{
         let cutout = this.calculateCutout();
         let xStart = cutout.sliderColumnStart;
         let xEnd = cutout.sliderColumnEnd;
+        this.gCtx.clearRect(0, 0, this.graph.width, this.graph.height);
         
         // sum up each array and find a relatinship and convert that to a percentarr
         let sum;
@@ -2174,7 +2206,7 @@ class areaChart extends Chart{
         let currentPieOffset = 0;
         for (let y = 0; y < percentPie.length; y++){
             if(this.lines[y].isActive){
-                this.drawPie(percentPie[y], currentPieOffset, this.lines[y].color);
+                this.drawPie(percentPie[y], currentPieOffset, this.lines[y].color, y);
                 currentPieOffset += percentPie[y];
             }
         }
@@ -2225,7 +2257,7 @@ class areaChart extends Chart{
         // currentOffset - the areaHeight * percentage of all the previous lines
     }
 
-    drawPie(pieceOfPie, pieOffset, color){
+    drawPie(pieceOfPie, pieOffset, color, pieNum){
         // takes
         
         // takes a percentage value and starting radian
@@ -2234,9 +2266,17 @@ class areaChart extends Chart{
         let xPos = this.graph.width / 2;
         let yPos = this.graph.height / 2;
         
-        let radius = 150 * pixelRatio;
+        let radius = 120 * pixelRatio;
         let startAngle = pieOffset * Math.PI * 2;
         let endAngle = startAngle + Math.PI * 2 * pieceOfPie;
+
+        if (pieNum == this.selectedPie){
+            // ctx.fillStyle = "red";
+            xPos = (radius / 5) * Math.cos(startAngle + (endAngle - startAngle) / 2) + xPos;
+            yPos = (radius / 5) * Math.sin(startAngle + (endAngle - startAngle) / 2) + yPos;
+            // this.selectedPie = null;
+        }
+
 
         ctx.beginPath();
         ctx.arc(xPos, yPos, radius, startAngle, endAngle);
@@ -2277,6 +2317,48 @@ class areaChart extends Chart{
             this.drawVerticalLine(currentXPos);
         }
         // this.drawCircles(convertedYValue, conversionQuotient, currentXPos, currentArrayColumn);
+    }
+    popPiePopup(){
+        let parameters = this.configureParametersForGraph();
+
+        let left = this.piePopup.getBoundingClientRect().left;
+        let top = this.piePopup.getBoundingClientRect().top;
+        this.piePopup.style.left = window.event.clientX - left + "px";
+        this.piePopup.style.top = window.event.clientY - top + "px";
+
+        let name;
+        let style;
+        let percentage;
+        let sumOfItems = 0;
+
+        let sumOfCurArr = 0;
+        let averageOfCurArr = 0;
+        for (let i in this.lines){
+            if (this.lines[i].isActive){
+                for (let x = parameters.xStart; x < parameters.xEnd; x++){
+                    sumOfCurArr += this.lines[i]["array"][x];
+                }
+                averageOfCurArr = sumOfCurArr / (parameters.xEnd = parameters.xStart);
+                sumOfItems += averageOfCurArr; //this.lines[i]["array"][currentArrayColumn];
+                sumOfCurArr = 0;
+            }
+        }
+        // calc average from start to end
+        let sum = 0;
+        for (let x = parameters.xStart; x < parameters.xEnd; x++){
+            sum += this.lines[this.selectedPie]["array"][x];
+        }
+        let average = sum / (parameters.xEnd-parameters.xStart);
+
+
+        name = this.lines[this.selectedPie]["checkboxName"];
+        style = `margin: 10px; color: ${this.lines[this.selectedPie]["color"]}`;
+        percentage = (Math.round(100 / sumOfItems * average));
+
+        this.piePopup.innerHTML =
+            `<div style="${style}"><p class="item"><span class="percentage">${percentage}%</span><span class="name">${name}</span><p class="number">${average}</></div>`;
+        
+        // this.piePopup.style.display = "block";
     }
     addItemsToTooltip(currentArrayColumn){
         // Displaying each item
@@ -2509,7 +2591,7 @@ function importDays(chartNumber, whereToAppend){
 // initiateCharts();
 
 // initiate each chart; also appends each to arrayOfNewCharts
-for (let c = 5; c <= 5; c++) {
+for (let c = 1; c <= 5; c++) {
     initiateNewCharts(c);
 }
 putThemeButton();
