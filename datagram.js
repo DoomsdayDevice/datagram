@@ -26,7 +26,7 @@ const DAY = {
 
 const SETTINGS = {
     // TODO add the configuration params here
-    minimapHeight: 70,
+    minimapHeight: 50,
     mainContainerWidth: innerWidth / 2,
     canvasHeight: 300,
     
@@ -442,31 +442,13 @@ class Chart{
         this.canvases.appendChild(this.graph);
         this.gCtx = this.graph.getContext("2d");
 
-        // this.graph.width = parseInt(this.div.clientWidth);
-        // this.graph.width = parseInt(getComputedStyle(this.div).width);
-
-        // this.graph.width = innerWidth - parseInt(getComputedStyle(this.div).marginRight);
-
-
-        this.graph.width = innerWidth;
+        this.graph.width = document.body.clientWidth;
         this.graph.height = SETTINGS.canvasHeight;
 
         this.graph.style.width = this.graph.width +'px';
         this.graph.style.height = this.graph.height +'px';
         this.graph.width *= pixelRatio;
         this.graph.height *= pixelRatio;
-        // this.gCtx.setTransform(pixelRatio,0,0,pixelRatio,0,0);
-        // this.gCtx.scale(pixelRatio, pixelRatio);
-
-        // this.graph.width = innerWidth;
-        // if (detectMobile()){
-        //     this.graph.height = 300;
-        // } else {
-
-        //     this.graph.height = 400;
-        // }
-        // // this.gCtx.scale(2,2);
-        // this
 
         // canvas for LINES NUMBERS DATES
         this.info = document.createElement("canvas");
@@ -475,7 +457,7 @@ class Chart{
 
         this.iCtx = this.info.getContext("2d");
 
-        this.info.width = innerWidth;
+        this.info.width = document.body.clientWidth;
         this.info.height = SETTINGS.canvasHeight;
         this.info.style.width = this.info.width +'px';
         this.info.style.height = this.info.height +'px';
@@ -490,7 +472,7 @@ class Chart{
         this.pCtx = this.popup.getContext("2d");
         // this.popup.width = this.graph.width;
         // this.popup.height = this.graph.height;
-        this.popup.width = innerWidth;
+        this.popup.width = document.body.clientWidth;
         this.popup.height = SETTINGS.canvasHeight;
         this.popup.style.width = this.popup.width +'px';
         this.popup.style.height = this.popup.height +'px';
@@ -520,8 +502,12 @@ class Chart{
         this.minimap = document.createElement("canvas");
         this.miniDiv.appendChild(this.minimap);
         this.mCtx = this.minimap.getContext("2d");
-        this.minimap.width = parseInt(getComputedStyle(this.miniDiv).width);
-        this.minimap.height = parseInt(getComputedStyle(this.miniDiv).height);
+        // this.minimap.width = parseInt(getComputedStyle(this.miniDiv).width);
+        // this.minimap.height = parseInt(getComputedStyle(this.miniDiv).height);
+        // this.minimap.width = this.graph.width * 0.94;
+        this.minimap.width = document.body.clientWidth * 0.94;
+;
+        this.minimap.height = SETTINGS.minimapHeight;
 
         // this.minimap.width = innerWidth * 0.8;
         // this.minimap.height = SETTINGS.minimapHeight;
@@ -1481,7 +1467,7 @@ class lineChart extends Chart{
 
 class line2YChart extends Chart{
     constructor(data){
-        let title = "There Was an Attempt";
+        let title = "2 Y-Axes Chart";
         super(data, title);
 
         // VARS
@@ -1887,7 +1873,7 @@ class stackedBarChart extends barChart{
 
 class singleBarChart extends barChart{
     constructor(data){
-        let title = "Bugs I Had to Fix";
+        let title = "Bars";
         super(data, title);
 
         // TODO days
@@ -1980,7 +1966,7 @@ class singleBarChart extends barChart{
 
 class areaChart extends Chart{
     constructor(data){
-        let title = "Not the Kind of Fruit Pies I Like";
+        let title = "Area/Pie Chart";
         super(data, title);
 
         this.boundChangeMode = this.changeMode.bind(this);
@@ -2595,4 +2581,4 @@ for (let c = 1; c <= 5; c++) {
     initiateNewCharts(c);
 }
 putThemeButton();
-switchTheme();
+// switchTheme();
