@@ -1,5 +1,5 @@
 # Datagram
-A web app made for the March Telegram competition. Primarily for mobile platforms.  
+A [web app](https://doomsdaydevice.github.io/datagram/) made for the March Telegram competition. Primarily for mobile platforms.  
 
 Features:  
     * No libraries, only native JS.  
