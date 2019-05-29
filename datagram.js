@@ -2579,4 +2579,4 @@ for (let c = 1; c <= 5; c++) {
     initiateNewCharts(c);
 }
 putThemeButton();
-// switchTheme();
+switchTheme();
