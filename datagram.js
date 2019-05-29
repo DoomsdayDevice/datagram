@@ -14,7 +14,7 @@ const help = {
     },
     daysInMonth: function(month, year) {
         return new Date(year, month, 0).getDate();
-}};
+    }};
 
 const NIGHT = {
     lead: "#1d2733"
@@ -25,11 +25,10 @@ const DAY = {
 
 
 const SETTINGS = {
-    // TODO add the configuration params here
     minimapHeight: 50,
-    mainContainerWidth: innerWidth / 2,
+    canvasWidth: innerWidth < 992 ? innerWidth : 992,
     canvasHeight: 300,
-    
+
     minSliderWidth: 50,
     fontSize: 16 * pixelRatio
 
@@ -64,16 +63,16 @@ const myMath = {
             array1[i] += array2[i];
         }
     },
-    formatNumber(n){ // shamelessly stole this function
+    formatNumber(n){
         let abs = Math.abs(n);
         if (abs > 1000000000) return (n / 1000000000).toFixed(2) + 'B';
         if (abs > 1000000) return (n / 1000000).toFixed(2) + 'M';
         if (abs > 1000) return (n / 1000).toFixed(1) + 'K';
 
         if (abs > 1) {
-            var s = abs.toFixed(0);
-            var formatted = n < 0 ? '-' : '';
-            for (var i = 0; i < s.length; i++) {
+            let s = abs.toFixed(0);
+            let formatted = n < 0 ? '-' : '';
+            for (let i = 0; i < s.length; i++) {
                 formatted += s.charAt(i);
                 if ((s.length - 1 - i) % 3 === 0) formatted += ' ';
             }
@@ -99,7 +98,7 @@ const myMath = {
         }
         return true;
     },
-    subtractSecondArrayOfArraysFromFirst(array1, array2){
+    subtractSecondNestedFromFirst(array1, array2){
         for(let x = 0; x < array1.length; x++){
             myMath.subtractSecondFromFirst(array1[x], array2[x]);
         }
@@ -111,7 +110,7 @@ const myMath = {
 
     },
 
-    divideArrayOfArraysByNum(array1, num){
+    divideNestedArrayByNum(array1, num){
         for(let x = 0; x < array1.length; x++){
             myMath.divideArrayByNum(array1[x], num);
         }
@@ -164,148 +163,6 @@ function initiateCharts(){
 
 }
 
-function drawAreaAnimation(parameters, chart, currentFrame, oldPercentLines, arrayOfOffsets,
-                           arrayOfDistributedDifferences){
-    // currentArray = Old * distributedDifference;
-
-    if (currentFrame < NUMOFFRAMES){
-        requestAnimationFrame(function(){
-            drawAreaAnimation(parameters, chart, currentFrame, oldPercentLines, arrayOfOffsets,
-                              arrayOfDistributedDifferences);
-        });
-
-
-        // cloning array of offsets before animation so it doesn't mutate it
-        let clonedArrayOfOffsets = [...arrayOfOffsets];
-        chart.sendAllActiveToDrawArea(parameters, oldPercentLines, clonedArrayOfOffsets); // NOTE maybe clone
-
-        // add distributed difference to the old array
-        myMath.addSecondNestedArrayToFirst(oldPercentLines, arrayOfDistributedDifferences); 
-        currentFrame += 1;
-    } else {
-        chart.justBeenRemoved = null;
-        chart.justBeenSelected = null;
-        chart.animationActive = false;
-        if (chart.mode == "area"){
-            chart.drawGraph();
-        }
-        chart.drawMinimap();
-    }
-}
-function drawAnimation2Y(parametersFirst, parametersSecond, chart, currentOldCeilingFirst,
-                         currentOldCeilingSecond, distributedDifferenceFirst,
-                         distributedDifferenceSecond, currentFrame, currentFutureCeilingFirst,
-                        currentFutureCeilingSecond){
-    if (currentFrame <= NUMOFFRAMES) {
-        if (parametersFirst.ctx == chart.gCtx){ // detects whether it's the minimap or the graph
-            if (parametersFirst.onButtonPress){ // for ALPHA ANIMATION
-                parametersFirst = chart.configureParametersForGraphFirst();
-                parametersSecond = chart.configureParametersForGraphSecond(); // TODO how to make them diff
-                parametersFirst.onButtonPress = true;
-                parametersSecond.onButtonPress = true;
-            } else{
-                parametersFirst = chart.configureParametersForGraphFirst();
-                parametersSecond = chart.configureParametersForGraphSecond(); // TODO how to make them diff
-            }
-        } else {
-            if (parametersFirst.onButtonPress){ // for ALPHA ANIMATION
-                parametersFirst = chart.configureParametersForMinimapFirst();
-                parametersSecond = chart.configureParametersForMinimapSecond();
-                parametersFirst.onButtonPress = true;
-                parametersSecond.onButtonPress = true;
-            } else {
-                parametersFirst = chart.configureParametersForMinimapFirst();
-                parametersSecond = chart.configureParametersForMinimapSecond();
-            }
-        }
-
-        requestAnimationFrame(function(){
-            drawAnimation2Y(parametersFirst, parametersSecond, chart, currentOldCeilingFirst, currentFutureCeilingSecond, distributedDifferenceFirst, distributedDifferenceSecond,
-                          currentFrame, currentFutureCeilingFirst, currentFutureCeilingSecond);
-        });
-        
-        parametersFirst.ctx.clearRect(0, 0, parametersFirst.xEndPoint, parametersFirst.yEndPoint);
-
-        // parametersFirst.ceiling = currentOldCeilingFirst + (distributedDifferenceFirst * currentFrame);
-        parametersFirst.ceiling = currentOldCeilingFirst + (distributedDifferenceFirst * currentFrame);
-        // TODO weird, why do i not set param second ceiling?
-        parametersFirst.currentFrame = currentFrame;
-        chart.animationFrame(parametersFirst, parametersSecond);
-        
-        
-        currentFrame += 1;
-
-        // find rel between ceilings for nums
-        let newOldRelationshipFirst = currentFutureCeilingFirst / currentOldCeilingFirst;
-        let newOldRelationshipSecond = currentFutureCeilingSecond / currentOldCeilingSecond;
-
-        // chart.drawNumbers(currentOldCeilingFirst, newOldRelationshipFirst, currentFrame);
-        chart.drawNumbers(currentFutureCeilingFirst, newOldRelationshipFirst, currentFrame);
-
-        // chart.drawNumbers(currentOldCeilingSecond, newOldRelationshipSecond, currentFrame, "R");
-        chart.drawNumbers(currentFutureCeilingSecond, newOldRelationshipSecond, currentFrame, "R");
-    } else {
-        chart.justBeenRemoved = null;
-        chart.justBeenSelected = null;
-        chart.animationActive = false;
-        chart.drawGraph();
-        // chart.drawLinesForAllActiveArrays(parameters); // TODO drawgraph or this hmmm
-        chart.drawNumbers(currentFutureCeilingFirst, 1, NUMOFFRAMES);
-        chart.drawNumbers(currentFutureCeilingSecond, 1, NUMOFFRAMES, "R");
-
-    }
-};
-
-function drawAnimation(parameters, chart, currentOldCeiling, distributedDifference, currentFrame, currentFutureCeiling){
-    if (currentFrame <= NUMOFFRAMES) {
-        if (parameters.ctx == chart.gCtx){ // detects whether it's the minimap or the graph
-            if (parameters.onButtonPress){ // for ALPHA ANIMATION
-                parameters = chart.configureParametersForGraph();
-                parameters.onButtonPress = true;
-            } else{
-                parameters = chart.configureParametersForGraph();
-            }
-        } else {
-            if (parameters.onButtonPress){
-                parameters = chart.configureParametersForMinimap();
-                parameters.onButtonPress = true;
-            } else {
-                parameters = chart.configureParametersForMinimap();
-            }
-        }
-
-        requestAnimationFrame(function(){
-            drawAnimation(parameters, chart, currentOldCeiling, distributedDifference,
-                          currentFrame, currentFutureCeiling);
-        });
-        
-
-        parameters.currentFrame = currentFrame;
-        parameters.ctx.clearRect(0, 0, parameters.xEndPoint, parameters.yEndPoint);
-        parameters.ceiling = currentOldCeiling + (distributedDifference * currentFrame);
-        chart.animationFrame(parameters);
-        
-        
-        currentFrame += 1;
-
-        // find rel between ceilings
-        
-        let newOldRelationship = currentFutureCeiling / currentOldCeiling;
-        chart.drawNumbers(currentOldCeiling, newOldRelationship, currentFrame);
-        chart.drawNumbers(currentFutureCeiling, newOldRelationship, currentFrame);
-    } else {
-        chart.justBeenRemoved = null;
-        chart.justBeenSelected = null;
-        chart.animationActive = false;
-        chart.drawGraph();
-        // chart.drawLinesForAllActiveArrays(parameters); // TODO drawgraph or this hmmm
-        chart.drawNumbers(currentFutureCeiling, 1, NUMOFFRAMES);
-        if(!chart.isAnyArrayActive()){
-            chart.iCtx.clearRect(0, 0, chart.graph.width, chart.graph.height);
-        }
-
-    }
-};
 
 
 class DrawingParameters{
@@ -325,7 +182,7 @@ class DrawingParameters{
         this.oldCeiling = oldCeiling;
         this.xOffset = xOffset;
         this.columnsOnCanvas = columnsOnCanvas;
-        
+
     }
 }
 
@@ -339,7 +196,6 @@ class Chart{
         this.then = Date.now();
 
 
-        // dummies TODO
         this.lines = [];
 
         this.destructureData(data);
@@ -350,7 +206,7 @@ class Chart{
         this.drawGraphOnMovement();
         this.drawMinimap();
         this.drawNumbers(this.configureParametersForGraph().ceiling, 1, NUMOFFRAMES);
-        
+
     }
     destructureData(data){
         // takes the passed data and converts into objects i can easily work with
@@ -377,7 +233,7 @@ class Chart{
 
     }
 
-    
+
     createLayout(title){
         this.createMainElements(title);
         this.createSlider();
@@ -415,14 +271,14 @@ class Chart{
         // main div
 
         this.div = document.createElement("div");
-        
-        document.getElementById("charts-container").appendChild(this.div);
-        this.div.className = "main-container";
+
+        document.querySelector(".charts-container").appendChild(this.div);
+        this.div.className = "chart";
         if (detectMobile()){
             this.div.style.width = innerWidth + "px";
             this.div.style.left = "0 px";
         } else {
-            this.div.style.width = innerWidth * 0.8 + "px";
+            this.div.style.width = SETTINGS.canvasWidth + "px";
             // this.div.style.left = "0 px";
         }
 
@@ -435,14 +291,14 @@ class Chart{
         // div for canvases
         this.canvases = document.createElement ("div");
         this.div.appendChild(this.canvases);
-        this.canvases.className = "canvases-container";
+        this.canvases.className = "chart__canvases";
 
         //graph
         this.graph = document.createElement("canvas");
         this.canvases.appendChild(this.graph);
         this.gCtx = this.graph.getContext("2d");
 
-        this.graph.width = document.body.clientWidth;
+        this.graph.width = SETTINGS.canvasWidth;
         this.graph.height = SETTINGS.canvasHeight;
 
         this.graph.style.width = this.graph.width +'px';
@@ -453,11 +309,11 @@ class Chart{
         // canvas for LINES NUMBERS DATES
         this.info = document.createElement("canvas");
         this.canvases.appendChild(this.info);
-        this.info.className = "info-canvas";
+        this.info.className = "chart__info-canvas";
 
         this.iCtx = this.info.getContext("2d");
 
-        this.info.width = document.body.clientWidth;
+        this.info.width = SETTINGS.canvasWidth;
         this.info.height = SETTINGS.canvasHeight;
         this.info.style.width = this.info.width +'px';
         this.info.style.height = this.info.height +'px';
@@ -467,12 +323,12 @@ class Chart{
         // canvas for the POPUP
         this.popup = document.createElement("canvas");
         this.canvases.appendChild(this.popup);
-        this.popup.className = "info-canvas";
+        this.popup.className = "chart__info-canvas";
 
         this.pCtx = this.popup.getContext("2d");
         // this.popup.width = this.graph.width;
         // this.popup.height = this.graph.height;
-        this.popup.width = document.body.clientWidth;
+        this.popup.width = SETTINGS.canvasWidth;
         this.popup.height = SETTINGS.canvasHeight;
         this.popup.style.width = this.popup.width +'px';
         this.popup.style.height = this.popup.height +'px';
@@ -497,7 +353,7 @@ class Chart{
         // container for the minimap and the slider
         this.miniDiv = document.createElement("div");
         this.div.appendChild(this.miniDiv);
-        this.miniDiv.className = "minimap-div";
+        this.miniDiv.className = "chart__minimap";
 
         this.minimap = document.createElement("canvas");
         this.miniDiv.appendChild(this.minimap);
@@ -505,8 +361,8 @@ class Chart{
         // this.minimap.width = parseInt(getComputedStyle(this.miniDiv).width);
         // this.minimap.height = parseInt(getComputedStyle(this.miniDiv).height);
         // this.minimap.width = this.graph.width * 0.94;
-        this.minimap.width = document.body.clientWidth * 0.94;
-;
+        this.minimap.width = SETTINGS.canvasWidth * 0.97;
+        ;
         this.minimap.height = SETTINGS.minimapHeight;
 
         // this.minimap.width = innerWidth * 0.8;
@@ -569,7 +425,7 @@ class Chart{
         };
 
         let mouseMovement = () => {
-            
+
             let addMovementListener = (moveFunction) => {
                 window.addEventListener("mousemove", moveFunction);
 
@@ -599,7 +455,7 @@ class Chart{
         // mobile touch support
         let mobileTouch = () => {
 
-            let addMovementListener = (moveFunction) => {
+            function addMovementListener(moveFunction) {
                 window.addEventListener("touchmove", moveFunction);
 
                 window.addEventListener("touchend", () =>{
@@ -609,12 +465,12 @@ class Chart{
 
             this.slider.addEventListener("touchstart", () =>{
                 this.previousTouchPosition = window.event.touches[0].clientX;
-                let sliderRect = this.slider.getBoundingClientRect();
+                let sliderLeft = this.slider.getBoundingClientRect().left;
 
-                if (window.event.touches[0].clientX < sliderRect.left + 20){
+                if (window.event.touches[0].clientX < sliderLeft + 20){
                     addMovementListener(moveSliderLeft);
 
-                } else if (window.event.touches[0].clientX > sliderRect.left +
+                } else if (window.event.touches[0].clientX > sliderLeft +
                            parseInt(getComputedStyle(this.slider).width) - 20){
                     addMovementListener(moveSliderRight);
                 } else {
@@ -638,14 +494,13 @@ class Chart{
                     this.slider.style.cursor = "move";
 
                 }
-            }
-                                        );
+            });
         };
         cursorListener();
 
     }
     createButtons(){
-        
+
         let buttons = document.createElement("div");
         this.buttons = buttons; // to refer to in singleBarChart to hide it
         this.div.appendChild(buttons);
@@ -693,7 +548,7 @@ class Chart{
             });
 
         }
-        
+
         let clrDiv = document.createElement("div");
         buttons.appendChild(clrDiv);
         clrDiv.style.clear = "both";
@@ -701,13 +556,13 @@ class Chart{
     createTooltip(){
         this.tooltip = document.createElement("div");
         this.div.appendChild(this.tooltip);
-        this.tooltip.className = "myTooltip";
+        this.tooltip.className = "chart__tooltip";
         // this.tooltip.style.backgroundColor = DAY.lead;
 
     }
 
 
-    calculateCutout () { 
+    calculateCutout () {
         // TODO gotta calc the columns and the offset
         // the offset is later used by drawgraph to calculate Translate
         let lPoint = parseInt(getComputedStyle(this.slider).left);
@@ -750,7 +605,7 @@ class Chart{
         if (movementX != 0 && this.isAnyArrayActive()){
             this.actuallyMoveSlider(movementX, movement);
         }
-        
+
     }
     actuallyMoveSlider(movementX, movement){
         let sliderStyle = getComputedStyle(this.slider);
@@ -867,7 +722,7 @@ class Chart{
         let fpsInterval = 1000 / fps;
 
         if (elapsed > fpsInterval){
-            
+
             this.then = now - (elapsed % fpsInterval);
             this.drawGraphOnMovement();
 
@@ -896,10 +751,10 @@ class Chart{
 
 
     }
-    
+
     configureParametersForGraph(){
         let parameters = new DrawingParameters();
-        
+
         let cutout = this.calculateCutout();
         let xStart = cutout.sliderColumnStart;
         let xEnd = cutout.sliderColumnEnd;
@@ -970,7 +825,7 @@ class Chart{
         parameters.columnsOnCanvas = this.x.length;
         return parameters;
     }
-    drawMinimap(onButtonPress = false){ // PARENTS: createButtons, launchChart, 
+    drawMinimap(onButtonPress = false){ // PARENTS: createButtons, launchChart,
         let parameters = this.configureParametersForMinimap();
         if (onButtonPress){
             parameters.onButtonPress = true;
@@ -992,16 +847,16 @@ class Chart{
         let currentMin;
         currentMin = Math.min();
         // go through all the actives and find min
-        // 
+        //
         for (let l = 0; l < this.lines.length; l++){
-            
+
         }
     }
     cutArrayAtLocalMin(parameters){
-        
+
         let areaHeight = parameters.yEndPoint - parameters.yStartPoint;
         // lowest Local for all the active arrays at that slice
-        
+
 
         let lowestLocal = Math.min(...parameters.yArray.slice(parameters.xStart, parameters.xEnd+1));
         let localCeiling = parameters.ceiling - lowestLocal;
@@ -1041,7 +896,7 @@ class Chart{
         let areaWidth = xEndPoint - xStartPoint;
 
         // find lowest local val
-        // 
+        //
 
 
         let columnWidth = areaWidth  / columnsOnCanvas; //used to calculate the number of columns on the screen
@@ -1050,7 +905,7 @@ class Chart{
         let currentX = xStartPoint - xOffset;
         let currentY = help.round(yArray[xStart] * numsPerPixel) - yStartPoint;
 
-        
+
         ctx.beginPath();
         // ctx.moveTo(currentX, currentY);
         for (let i = xStart; i < xEnd + 1; i++) {
@@ -1071,18 +926,17 @@ class Chart{
         ctx.stroke();
 
     }
-    animation(parameters){ 
+    animation(parameters){
         let currentOldCeiling = parameters.oldCeiling;
         let currentFutureCeiling = parameters.ceiling;
         let currentNumOfFrames = NUMOFFRAMES;
 
         let difference = currentFutureCeiling - currentOldCeiling;
         let distributedDifference = difference / NUMOFFRAMES;
-        
+
         let currentFrame = 1;
 
-        let chart = this;
-        drawAnimation(parameters, chart, currentOldCeiling, distributedDifference, currentFrame, currentFutureCeiling);
+        this.drawAnimation(parameters, currentOldCeiling, distributedDifference, currentFrame, currentFutureCeiling);
 
     }
     animationFrame(parameters){
@@ -1090,35 +944,85 @@ class Chart{
     }
 
 
+    drawAnimation = (parameters, currentOldCeiling, distributedDifference, currentFrame, currentFutureCeiling) => {
+        if (currentFrame <= NUMOFFRAMES) {
+            if (parameters.ctx == this.gCtx){ // detects whether it's the minimap or the graph
+                if (parameters.onButtonPress){ // for ALPHA ANIMATION
+                    parameters = this.configureParametersForGraph();
+                    parameters.onButtonPress = true;
+                } else{
+                    parameters = this.configureParametersForGraph();
+                }
+            } else {
+                if (parameters.onButtonPress){
+                    parameters = this.configureParametersForMinimap();
+                    parameters.onButtonPress = true;
+                } else {
+                    parameters = this.configureParametersForMinimap();
+                }
+            }
+
+            requestAnimationFrame(() => {
+                this.drawAnimation(parameters, currentOldCeiling, distributedDifference,
+                                   currentFrame, currentFutureCeiling);
+            });
+
+
+            parameters.currentFrame = currentFrame;
+            parameters.ctx.clearRect(0, 0, parameters.xEndPoint, parameters.yEndPoint);
+            parameters.ceiling = currentOldCeiling + (distributedDifference * currentFrame);
+            this.animationFrame(parameters);
+
+
+            currentFrame += 1;
+
+            // find rel between ceilings
+
+            let newOldRelationship = currentFutureCeiling / currentOldCeiling;
+            this.drawNumbers(currentOldCeiling, newOldRelationship, currentFrame);
+            this.drawNumbers(currentFutureCeiling, newOldRelationship, currentFrame);
+        } else {
+            this.justBeenRemoved = null;
+            this.justBeenSelected = null;
+            this.animationActive = false;
+            this.drawGraph();
+            // this.drawLinesForAllActiveArrays(parameters); // TODO drawgraph or this hmmm
+            this.drawNumbers(currentFutureCeiling, 1, NUMOFFRAMES);
+            if(!this.isAnyArrayActive()){
+                this.iCtx.clearRect(0, 0, this.graph.width, this.graph.height);
+            }
+
+        }
+    };
 
 
 
     drawHorizontalLines(rowHeight){
-	      let drawLines = () =>{
+        let drawLines = () =>{
             let x = 0;
             let xEnd = this.graph.width;
-	          let y = DATESPACE - 21 * pixelRatio;
-	          for (let i = 0; i < NUMOFROWS; i++){
-		            this.iCtx.moveTo(x, y);
-		            this.iCtx.lineTo(xEnd, y);
-		            y += rowHeight;
-	          }
-	      };
-	      this.iCtx.beginPath();
-	      drawLines();
+            let y = DATESPACE - 21 * pixelRatio;
+            for (let i = 0; i < NUMOFROWS; i++){
+                this.iCtx.moveTo(x, y);
+                this.iCtx.lineTo(xEnd, y);
+                y += rowHeight;
+            }
+        };
+        this.iCtx.beginPath();
+        drawLines();
 
-	      this.iCtx.globalAlpha = 0.2;
-	      this.iCtx.lineWidth = "2";
-	      // this.iCtx.strokeStyle = "grey";
+        this.iCtx.globalAlpha = 0.2;
+        this.iCtx.lineWidth = "2";
+        // this.iCtx.strokeStyle = "grey";
         this.iCtx.stroke();
-	      this.iCtx.globalAlpha = 1;
+        this.iCtx.globalAlpha = 1;
     }
     drawHorizontalLineAboveText(){ // above dates
-	      this.iCtx.beginPath();
-	      this.iCtx.strokeStyle = "grey";
-	      this.iCtx.moveTo(0, this.graph.height - DATESPACE + 2);
-	      this.iCtx.lineTo(this.graph.width, this.graph.height - DATESPACE + 2);
-	      this.iCtx.stroke();
+        this.iCtx.beginPath();
+        this.iCtx.strokeStyle = "grey";
+        this.iCtx.moveTo(0, this.graph.height - DATESPACE + 2);
+        this.iCtx.lineTo(this.graph.width, this.graph.height - DATESPACE + 2);
+        this.iCtx.stroke();
     }
     drawDates({xStart, xEnd, xOffset, xEndPoint, xStartPoint}) {
         // fired on every redraw (for optimization - only fire when slider is moved)
@@ -1127,17 +1031,17 @@ class Chart{
         // better to draw this with each line draw OR use the same formulas
         // TODO make new consts for repetitive formulas, like calc position with offset
         let columnWidth = (xEndPoint - xStartPoint) / (xEnd - xStart);
-        
-	      let dateSkipCounter = 0;
-	      let skipFactor;
-	      skipFactor = Math.floor(80 / columnWidth * pixelRatio);
+
+        let dateSkipCounter = 0;
+        let skipFactor;
+        skipFactor = Math.floor(80 / columnWidth * pixelRatio);
 
 
         let y = this.graph.height - 5 * pixelRatio;
-        let currentX = 0; 
+        let currentX = 0;
 
-	      this.iCtx.font = `${SETTINGS.fontSize}px Helvetica`; //font for the numbers
-	      this.iCtx.fillStyle = "grey";
+        this.iCtx.font = `${SETTINGS.fontSize}px Helvetica`; //font for the numbers
+        this.iCtx.fillStyle = "grey";
         for (let i = xStart; i < xEnd + 1; i++) {
             if (dateSkipCounter == 0) {
                 // TODO finish rounding floats
@@ -1151,11 +1055,11 @@ class Chart{
             } else {
                 dateSkipCounter -= 1;
             }
-        } 
+        }
     }
     drawNumbers(ceiling, newOldRelationship = 1, currentFrame = 1, side="L") {
-	      // drawing the numbers on the left side
-	      let y = this.graph.height - DATESPACE;
+        // drawing the numbers on the left side
+        let y = this.graph.height - DATESPACE;
 
         // old ceil is used to calc nums
         // new to calc position
@@ -1164,7 +1068,7 @@ class Chart{
         if (side == "L"){
             this.iCtx.clearRect(0, 0, this.graph.width, y);
         }
-	      let curNum = 0;
+        let curNum = 0;
         let rowStep = ceiling / NUMOFROWS;
 
 
@@ -1185,19 +1089,19 @@ class Chart{
 
 
         this.iCtx.globalAlpha = opacity;
-	      this.iCtx.font = `${SETTINGS.fontSize}px Helvetica`; //font for the numbers
-	      this.iCtx.fillStyle = "grey";
-	      for (let i=0; i < NUMOFROWS; i++){
-		        this.iCtx.fillText(myMath.formatNumber(curNum, true), xPosition, y - 10);
-		        curNum += rowStep;
-		        y -= rowHeight;
-	      }
+        this.iCtx.font = `${SETTINGS.fontSize}px Helvetica`; //font for the numbers
+        this.iCtx.fillStyle = "grey";
+        for (let i=0; i < NUMOFROWS; i++){
+            this.iCtx.fillText(myMath.formatNumber(curNum, true), xPosition, y - 10);
+            curNum += rowStep;
+            y -= rowHeight;
+        }
         this.iCtx.lineWidth = 1;
 
         if (currentFrame % 2 == 0 || currentFrame == 1){ //launches lines but not too frequently
             this.drawHorizontalLines(rowHeight);
         } else {
-            
+
         }
         this.iCtx.globalAlpha = 1;
 
@@ -1332,7 +1236,7 @@ class Chart{
         xOffset = xOffset / numOfCutColumns * this.x.length;
 
         let currentXPos = currentGraphColumn * columnWidth - xOffset;
-        
+
         this.drawGraphPopup(currentArrayColumn, currentXPos, conversionQuotient);
 
     }
@@ -1378,11 +1282,11 @@ function switchTheme(){
 
     }
     for (let i = 0; i < arrayOfNewCharts.length; i++){
-        
+
         chart = arrayOfNewCharts[i];
         if (color == DAY.lead){
             chart.div.style.color = NIGHT.lead;
-            
+
             // if (!chart.checkmark.checked){
             //     chart.checkmark.style.backgroundColor = document.body.style.backgroundColor;
         } else {
@@ -1397,21 +1301,21 @@ function switchTheme(){
     }
 }
 function putThemeButton(){
-    let buttonContainer = document.getElementById("switch-container");
+    let buttonContainer = document.querySelector(".switch-button-container");
     // document.body.appendChild(buttonContainer);
     // buttonContainer.id = "switch-container";
 
     themeButton = document.createElement("span");
     buttonContainer.appendChild(themeButton);
     // themeButton.type = "a";
-    themeButton.id = "switch-button";
+    themeButton.className = "switch-button";
     themeButton.innerHTML = "Switch to Day Mode";
     themeButton.addEventListener("click", switchTheme);
 }
 
 
 
-function detectMobile() { 
+function detectMobile() {
     if( navigator.userAgent.match(/Android/i)
         || navigator.userAgent.match(/webOS/i)
         || navigator.userAgent.match(/iPhone/i)
@@ -1427,28 +1331,30 @@ function detectMobile() {
     }
 }
 
+let documentWidth;
+let documentHeight;
+function onLoad(){
+    documentWidth = innerWidth;
+    documentHeight = window.screen.height;
+}
+
 let throttled;
 function onResize(){
-    // reset canvases (reconfigure their sizes) and redraw
-    // add drawMinimap to redraw in this case
-    if (!throttled) {
-        let chart;
-        for (let i = 0; i < arrayOfCharts.length; i++){
-            chart = arrayOfCharts[i];
-            // adjust and redraw canvases
-            // adjust slider
-            // chart.graph.style.width = innerWidth / 2 + "px";//- parseInt(getComputedStyle(chart.div).marginRight);
-        }
-        // switchTheme();
+    if (!throttled && (documentWidth != innerWidth || documentHeight != window.screen.height)) {
+        location.reload();
         throttled = true;
+
         setTimeout(function() {
             throttled = false;
         }, 250);
 
-    } 
+        documentWidth = innerWidth;
+        documentHeight = window.screen.height;
+    }
 
 }
 
+window.addEventListener("load", onLoad);
 window.addEventListener("resize", onResize);
 
 
@@ -1478,7 +1384,7 @@ class line2YChart extends Chart{
         this.drawNumbers(this.configureParametersForGraphSecond().ceiling, 1, NUMOFFRAMES, "R");
     }
 
-    
+
     findPrettyMax(xStart, xEnd, array = []){
         //find max THEN turn it into a pretty num
         let slicedArray = array.slice(xStart, xEnd+1);
@@ -1534,7 +1440,7 @@ class line2YChart extends Chart{
         parameters.oldCeiling = this.oldMinimapCeilingSecond;
         return parameters;
     }
-    drawMinimap(onButtonPress = false){ // PARENTS: createButtons, launchChart, 
+    drawMinimap(onButtonPress = false){ // PARENTS: createButtons, launchChart,
 
         let first = this.lines[0];
         let second = this.lines[1];
@@ -1595,7 +1501,7 @@ class line2YChart extends Chart{
         }
     }
     animation(parametersFirst, parametersSecond){
-        
+
         let currentOldCeilingFirst = parametersFirst.oldCeiling;
         let currentFutureCeilingFirst = parametersFirst.ceiling;
         let currentOldCeilingSecond = parametersSecond.oldCeiling;
@@ -1606,11 +1512,11 @@ class line2YChart extends Chart{
         let distributedDifferenceFirst = differenceFirst / NUMOFFRAMES;
         let differenceSecond = currentFutureCeilingSecond - currentOldCeilingSecond;
         let distributedDifferenceSecond = differenceSecond / NUMOFFRAMES;
-        
+
         let currentFrame = 1;
 
-        drawAnimation2Y(parametersFirst, parametersSecond, this, currentOldCeilingFirst, currentFutureCeilingSecond, distributedDifferenceFirst, distributedDifferenceSecond,
-                      currentFrame, currentFutureCeilingFirst, currentFutureCeilingSecond);
+        this.drawAnimation2Y(parametersFirst, parametersSecond, currentOldCeilingFirst, currentFutureCeilingSecond, distributedDifferenceFirst, distributedDifferenceSecond,
+                             currentFrame, currentFutureCeilingFirst, currentFutureCeilingSecond);
     }
     drawLine2Y(parameters){
         // wrapper that starts at local min
@@ -1644,6 +1550,69 @@ class line2YChart extends Chart{
         }
         parametersFirst.ctx.globalAlpha = 1;
     }
+    drawAnimation2Y(parametersFirst, parametersSecond, currentOldCeilingFirst,
+                    currentOldCeilingSecond, distributedDifferenceFirst,
+                    distributedDifferenceSecond, currentFrame, currentFutureCeilingFirst,
+                    currentFutureCeilingSecond){
+        if (currentFrame <= NUMOFFRAMES) {
+            if (parametersFirst.ctx == this.gCtx){ // detects whether it's the minimap or the graph
+                if (parametersFirst.onButtonPress){ // for ALPHA ANIMATION
+                    parametersFirst = this.configureParametersForGraphFirst();
+                    parametersSecond = this.configureParametersForGraphSecond(); // TODO how to make them diff
+                    parametersFirst.onButtonPress = true;
+                    parametersSecond.onButtonPress = true;
+                } else{
+                    parametersFirst = this.configureParametersForGraphFirst();
+                    parametersSecond = this.configureParametersForGraphSecond(); // TODO how to make them diff
+                }
+            } else {
+                if (parametersFirst.onButtonPress){ // for ALPHA ANIMATION
+                    parametersFirst = this.configureParametersForMinimapFirst();
+                    parametersSecond = this.configureParametersForMinimapSecond();
+                    parametersFirst.onButtonPress = true;
+                    parametersSecond.onButtonPress = true;
+                } else {
+                    parametersFirst = this.configureParametersForMinimapFirst();
+                    parametersSecond = this.configureParametersForMinimapSecond();
+                }
+            }
+
+            requestAnimationFrame(() => {
+                this.drawAnimation2Y(parametersFirst, parametersSecond, currentOldCeilingFirst, currentFutureCeilingSecond, distributedDifferenceFirst, distributedDifferenceSecond,
+                                     currentFrame, currentFutureCeilingFirst, currentFutureCeilingSecond);
+            });
+
+            parametersFirst.ctx.clearRect(0, 0, parametersFirst.xEndPoint, parametersFirst.yEndPoint);
+
+            // parametersFirst.ceiling = currentOldCeilingFirst + (distributedDifferenceFirst * currentFrame);
+            parametersFirst.ceiling = currentOldCeilingFirst + (distributedDifferenceFirst * currentFrame);
+            // TODO weird, why do i not set param second ceiling?
+            parametersFirst.currentFrame = currentFrame;
+            this.animationFrame(parametersFirst, parametersSecond);
+
+
+            currentFrame += 1;
+
+            // find rel between ceilings for nums
+            let newOldRelationshipFirst = currentFutureCeilingFirst / currentOldCeilingFirst;
+            let newOldRelationshipSecond = currentFutureCeilingSecond / currentOldCeilingSecond;
+
+            // this.drawNumbers(currentOldCeilingFirst, newOldRelationshipFirst, currentFrame);
+            this.drawNumbers(currentFutureCeilingFirst, newOldRelationshipFirst, currentFrame);
+
+            // this.drawNumbers(currentOldCeilingSecond, newOldRelationshipSecond, currentFrame, "R");
+            this.drawNumbers(currentFutureCeilingSecond, newOldRelationshipSecond, currentFrame, "R");
+        } else {
+            this.justBeenRemoved = null;
+            this.justBeenSelected = null;
+            this.animationActive = false;
+            this.drawGraph();
+            // this.drawLinesForAllActiveArrays(parameters); // TODO drawgraph or this hmmm
+            this.drawNumbers(currentFutureCeilingFirst, 1, NUMOFFRAMES);
+            this.drawNumbers(currentFutureCeilingSecond, 1, NUMOFFRAMES, "R");
+
+        }
+    };
     drawCircles(conversionQuotient, currentXPos, currentArrayColumn){
         // drawing the circles for each line based on its configuration
         let convertedYValue;
@@ -1691,7 +1660,7 @@ class barChart extends Chart{
         super(data, title);
     }
 
-    
+
 
 
     drawBars({ctx, yArray, xStart, xEnd, color, yEndPoint, yStartPoint, barOffset=0, arrayOfOffsets, ceiling, xOffset, columnsOnCanvas, xStartPoint, xEndPoint, selectedColumn = null}){
@@ -1783,7 +1752,7 @@ class stackedBarChart extends barChart{
                 // currentArray = this.bars[i].array.slice(xStart, xEnd+1);
                 // for (let j = xStart; j < xEnd + 1; j++){
                 //     summedArray[j] += currentArray[j];
-                    
+
                 // }
             }
         }
@@ -1794,7 +1763,7 @@ class stackedBarChart extends barChart{
         let array = this.getSummedArray(xStart, xEnd);
         return myMath.findPrettyRoundNum(Math.max(...array));
     }
-    
+
 
     animationFrame(parameters){
         this.drawStackedBars(parameters);
@@ -1839,7 +1808,7 @@ class stackedBarChart extends barChart{
         for (let x = 0; x < this.x.length; x++){
             parameters.arrayOfOffsets.push(0);
         }
-        
+
         // draw a bar and add value to stack for each active array
         for (let b = 0; b < this.bars.length; b++){
             if (this.bars[b].isActive){
@@ -1976,7 +1945,7 @@ class areaChart extends Chart{
         this.mode = "area";
 
 
-        // adding the zoom button 
+        // adding the zoom button
         this.zoomButton = document.createElement("button");
         this.canvases.appendChild(this.zoomButton);
         this.zoomButton.className = "zoom-button";
@@ -1987,7 +1956,7 @@ class areaChart extends Chart{
         this.periodText = document.createElement("p");
         this.canvases.appendChild(this.periodText);
         this.periodText.className = "period-text";
-        this.periodText.textContent = "ssanina";
+        this.periodText.textContent = "whoo";
         this.periodText.style.display = "none";
 
         this.piePopup = document.createElement("div");
@@ -2012,7 +1981,7 @@ class areaChart extends Chart{
         } else {
             this.mode = "area";
             this.gCtx.clearRect(0, 0, this.graph.width, this.graph.height);
-            // TODO draw numbers 
+            // TODO draw numbers
             this.drawGraph();
             this.drawDates(this.configureParametersForGraph());
             this.drawNumbers();
@@ -2066,7 +2035,7 @@ class areaChart extends Chart{
         } else {
             this.sendAllActiveToDrawArea(parameters, percentLines, arrayOfOffsets);
         }
-        
+
     }
     drawMinimap(){
         let parameters = this.configureParametersForMinimap();
@@ -2092,7 +2061,7 @@ class areaChart extends Chart{
         this.drawWithAnArea(parameters);
     }
     configureArea(parameters){
-        
+
         parameters.floorArray = this.lines[0];// floorArray;
         parameters.roofArray = this.lines[0];
         parameters.color = this.lines[0].color;
@@ -2129,7 +2098,7 @@ class areaChart extends Chart{
                 }
             }
             // TODO if turned off - push all 0s
-            
+
         }
         return [percentLines, arrayOfOffsets];
     }
@@ -2140,7 +2109,7 @@ class areaChart extends Chart{
                 parameters.yArray = percentLines[y];
                 parameters.color = this.lines[y].color;
                 this.drawArea(parameters);
-                
+
             }
         }
     }
@@ -2164,7 +2133,7 @@ class areaChart extends Chart{
         let xStart = cutout.sliderColumnStart;
         let xEnd = cutout.sliderColumnEnd;
         this.gCtx.clearRect(0, 0, this.graph.width, this.graph.height);
-        
+
         // sum up each array and find a relatinship and convert that to a percentarr
         let sum;
         let arrayOfSums = [];
@@ -2178,7 +2147,7 @@ class areaChart extends Chart{
             arrayOfSums.push(sum);
         }
 
-        let sumOfSums = 0; 
+        let sumOfSums = 0;
         for (let y = 0; y < arrayOfSums.length; y++){
             sumOfSums += arrayOfSums[y];
         }
@@ -2199,7 +2168,7 @@ class areaChart extends Chart{
 
     }
     drawArea({ctx, arrayOfOffsets, yArray, color, xEndPoint, xStartPoint, ceiling, yEndPoint, yStartPoint, xStart, xEnd, xOffset, columnsOnCanvas}){
-        // takes an array of percentages of graph width 
+        // takes an array of percentages of graph width
         // use the given percentage and multiply areaHeight by it
         // let yEndPoint = this.graph.height - DATESPACE;
         // let yStartPoint = 0;
@@ -2208,7 +2177,7 @@ class areaChart extends Chart{
 
         // let xStart = 0;
         // let xEnd = this.x.length;
-        
+
         let columnWidth = areaWidth / columnsOnCanvas;
 
         let numsPerPixel = areaHeight / ceiling;
@@ -2245,13 +2214,13 @@ class areaChart extends Chart{
 
     drawPie(pieceOfPie, pieOffset, color, pieNum){
         // takes
-        
+
         // takes a percentage value and starting radian
         // draws an arc based on that
         let ctx = this.gCtx;
         let xPos = this.graph.width / 2;
         let yPos = this.graph.height / 2;
-        
+
         let radius = 120 * pixelRatio;
         let startAngle = pieOffset * Math.PI * 2;
         let endAngle = startAngle + Math.PI * 2 * pieceOfPie;
@@ -2290,7 +2259,7 @@ class areaChart extends Chart{
         ctx.fillStyle = "white";
         // ctx.fillText (text, x, adjustedY);
         ctx.fillText (text, x, y);
-        
+
 
         // ctx.strokeStyle = color;
         // ctx.stroke();
@@ -2343,7 +2312,7 @@ class areaChart extends Chart{
 
         this.piePopup.innerHTML =
             `<div style="${style}"><p class="item"><span class="percentage">${percentage}%</span><span class="name">${name}</span><p class="number">${average}</></div>`;
-        
+
         // this.piePopup.style.display = "block";
     }
     addItemsToTooltip(currentArrayColumn){
@@ -2379,7 +2348,7 @@ class areaChart extends Chart{
             }
         }
     }
-        
+
     displayTooltip(currentArrayColumn, currentXPos){
         super.displayTooltip(currentArrayColumn, currentXPos);
         let width = this.tooltip.offsetWidth;
@@ -2398,7 +2367,7 @@ class areaChart extends Chart{
 
     }
     drawNumbers(){
-	      let y = this.graph.height - DATESPACE * pixelRatio / 1.5;
+        let y = this.graph.height - DATESPACE * pixelRatio / 1.5;
         this.iCtx.clearRect(0, 0, this.graph.width, y);
         let rowHeight = (this.graph.height - DATESPACE) / (NUMOFROWS - 1);
         let curNum = 20;
@@ -2406,38 +2375,38 @@ class areaChart extends Chart{
 
 
         let xPosition = 20;
-	      this.iCtx.font = `${SETTINGS.fontSize}px Helvetica`; //font for the numbers
-	      this.iCtx.fillStyle = "white";
-	      this.iCtx.strokeStyle = "white";
+        this.iCtx.font = `${SETTINGS.fontSize}px Helvetica`; //font for the numbers
+        this.iCtx.fillStyle = "white";
+        this.iCtx.strokeStyle = "white";
 
-	      for (let i=0; i < NUMOFROWS -1; i++){
-		        this.iCtx.fillText(myMath.formatNumber(curNum, true), xPosition, y - 50);
-		        curNum += rowStep;
-		        y -= rowHeight;
-	      }
+        for (let i=0; i < NUMOFROWS -1; i++){
+            this.iCtx.fillText(myMath.formatNumber(curNum, true), xPosition, y - 50);
+            curNum += rowStep;
+            y -= rowHeight;
+        }
         this.iCtx.lineWidth = 1 * pixelRatio;
-        
+
         this.drawHorizontalLines(rowHeight);
     }
     // drawHorizontalLines(rowHeight){
-	  //     let drawLines = () =>{
+    //     let drawLines = () =>{
     //         let x = 0;
     //         let xEnd = this.graph.width;
-	  //         let y = DATESPACE - 21;
-	  //         for (let i = 0; i < NUMOFROWS; i++){
-		//             this.iCtx.moveTo(x, y);
-		//             this.iCtx.lineTo(xEnd, y);
-		//             y += rowHeight;
-	  //         }
-	  //     };
-	  //     this.iCtx.beginPath();
-	  //     drawLines();
+    //         let y = DATESPACE - 21;
+    //         for (let i = 0; i < NUMOFROWS; i++){
+    //             this.iCtx.moveTo(x, y);
+    //             this.iCtx.lineTo(xEnd, y);
+    //             y += rowHeight;
+    //         }
+    //     };
+    //     this.iCtx.beginPath();
+    //     drawLines();
 
-	  //     this.iCtx.globalAlpha = 0.2;
-	  //     this.iCtx.lineWidth = "2";
-	  //     this.iCtx.strokeStyle = "grey";
+    //     this.iCtx.globalAlpha = 0.2;
+    //     this.iCtx.lineWidth = "2";
+    //     this.iCtx.strokeStyle = "grey";
     //     this.iCtx.stroke();
-	  //     this.iCtx.globalAlpha = 1;
+    //     this.iCtx.globalAlpha = 1;
     // }
     drawDates(parameters){
         if (this.mode == "pie"){
@@ -2457,18 +2426,47 @@ class areaChart extends Chart{
         // take values from first
         // note that it's an array of arrays; also that i cannot mutate the old one or new one
         let clonedNewPercentLines = myMath.cloneNestedArray(newPercentLines);
-        myMath.subtractSecondArrayOfArraysFromFirst(clonedNewPercentLines, oldPercentLines);
+        myMath.subtractSecondNestedFromFirst(clonedNewPercentLines, oldPercentLines);
         // now that the clone is the difference, divide it by num of frames
-        myMath.divideArrayOfArraysByNum(clonedNewPercentLines, NUMOFFRAMES);
+        myMath.divideNestedArrayByNum(clonedNewPercentLines, NUMOFFRAMES);
         arrayOfDistributedDifferences = clonedNewPercentLines;
 
         // so i can mutate it during animation
         let clonedOldPercentLines = myMath.cloneNestedArray(oldPercentLines);
 
         let currentFrame = 1;
-        drawAreaAnimation(parameters,  this, currentFrame, clonedOldPercentLines, arrayOfOffsets,
+        this.drawAreaAnimation(parameters, currentFrame, clonedOldPercentLines, arrayOfOffsets,
                           arrayOfDistributedDifferences);
     }
+    drawAreaAnimation(parameters, currentFrame, oldPercentLines, arrayOfOffsets,
+                      arrayOfDistributedDifferences){
+        // currentArray = Old * distributedDifference;
+
+        if (currentFrame < NUMOFFRAMES){
+            requestAnimationFrame(() => {
+                this.drawAreaAnimation(parameters, currentFrame, oldPercentLines, arrayOfOffsets,
+                                  arrayOfDistributedDifferences);
+            });
+
+
+            // cloning array of offsets before animation so it doesn't mutate it
+            let clonedArrayOfOffsets = [...arrayOfOffsets];
+            this.sendAllActiveToDrawArea(parameters, oldPercentLines, clonedArrayOfOffsets); // NOTE maybe clone
+
+            // add distributed difference to the old array
+            myMath.addSecondNestedArrayToFirst(oldPercentLines, arrayOfDistributedDifferences);
+            currentFrame += 1;
+        } else {
+            this.justBeenRemoved = null;
+            this.justBeenSelected = null;
+            this.animationActive = false;
+            if (this.mode == "area"){
+                this.drawGraph();
+            }
+            this.drawMinimap();
+        }
+    }
+
 }
 
 
@@ -2477,7 +2475,7 @@ class areaChart extends Chart{
 
 
 
-//create an xhtml request, load overview
+//create an xhr, load overview
 function downloadDays(filename, whereToAppend){
     let xmlhttp = new XMLHttpRequest();
     xmlhttp.responseType = 'json';

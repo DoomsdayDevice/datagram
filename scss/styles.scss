@@ -1,19 +1,28 @@
 *{
-    padding: 0;
-    margin: 0;
+    padding: 0; margin: 0;
 }
 body{
     background-color: rgb(255, 255, 255);
     font-family: "Lucida Grande", "Lucida Sans Unicode", Arial, Helvetica, Verdana, sans-serif;
     display: flex;
     flex-direction: column;
-    /* align-items: center; */
+    align-items: center;
     /* flex-wrap: wrap; */
 
     overflow-x: hidden; /* remove hor scrollbar */
+
+    h1 {
+        margin-left: 2%;
+        margin-bottom: 20px;
+        color: skyblue;
+    }
+}
+.charts-container {
+    max-width: 992px;
+    // overflow: hidden;
 }
 
-.main-container{
+.chart{
     margin-top: 50px;
     margin-bottom: 200px;
     /* margin-right: 150px; */
@@ -22,6 +31,49 @@ body{
     position: relative;
     /* box-sizing: border-box; */
     /* float: left; */
+
+    &__canvases {
+        position: relative;
+    }
+
+    &__info-canvas {
+        position: absolute;
+        left: 0;
+        top: 0;
+        background-color: rgba(0, 0, 0, 0);
+    }
+    &__minimap {
+        position: relative;
+        /* margin-top: 30px; */
+        margin-left: 2%;
+        /* margin-right: 2%; */
+        /* height: 50px; */
+
+        .left-space{
+            position: absolute;
+            top: 0;
+            background-color: rgba(0, 0, 0, 0.2);
+        }
+
+        .slider{
+            position: absolute;
+            top: 0;
+            border-style: solid;
+            border-width: 3px 6px;
+            border-color: rgba(100, 100, 100, 0.6);
+            touch-action: none;
+
+
+        }
+
+        .right-space{
+            position: absolute;
+            top: 0;
+            background-color: rgba(0, 0, 0, 0.2);
+
+
+        }
+    }
 }
 /* @media(min-width: 800px){ */
 /*     .main-container{ */
@@ -33,48 +85,25 @@ body{
 /*         width: 85%; */
 /*     } */
 /* } */
-.canvases-container {
-    position: relative;
-}
-
-.info-canvas {
-    position: absolute;
-    left: 0;
-    top: 0;
-    background-color: rgba(0, 0, 0, 0);
-}
 
 
-.minimap-div {
-    position: relative;
-    /* margin-top: 30px; */
-    margin-left: 2%;
-    /* margin-right: 2%; */
-    /* height: 50px; */
-}
 
-h1 {
-    margin-left: 2%;
-    margin-bottom: 20px;
-    color: skyblue;
-}
-
-#switch-button{
-    cursor: pointer;
-    font-size: 25px;
-    
-}
-#switch-container{
+.switch-button-container{
     text-align: center;
     color: skyblue;
     margin-bottom: 50px;
     -webkit-tap-highlight-color:  rgba(255, 255, 255, 0); 
+    user-select: none;
 
-    
+    .switch-button{
+        cursor: pointer;
+        font-size: 25px;
+        
+    }
 }
 
 
-.myTooltip {
+.chart__tooltip {
 
   text-align: center;
   font-size: 15px;
@@ -89,55 +118,26 @@ h1 {
   transition: opacity 0.3s;
   /* white-space: nowrap; */
 
+  .header{
+      float: left;
+      margin: 5px;
+      font-weight: bold;
+  }
+  .item{
+      float:left;
+      /* color: black; */
+  }
+  .percentage{
+      margin-right: 5px;
+      font-weight: bold;
+  }
+  .name{
+      margin-right: 60px;
+  }
+  .number{
+      float: right;
+  }
 }
-.myTooltip .header{
-    float: left;
-    margin: 5px;
-    font-weight: bold;
-}
-.myTooltip .item{
-    float:left;
-    /* color: black; */
-}
-.myTooltip .percentage{
-    margin-right: 5px;
-    font-weight: bold;
-}
-.myTooltip .name{
-    margin-right: 60px;
-}
-.myTooltip .number{
-    float: right;
-}
-
-/* SLIDERS */
-
-
-.left-space{
-    position: absolute;
-    top: 0;
-    background-color: rgba(0, 0, 0, 0.2);
-}
-
-.slider{
-    position: absolute;
-    top: 0;
-    border-style: solid;
-    border-width: 3px 6px;
-    border-color: rgba(100, 100, 100, 0.6);
-    touch-action: none;
-
-
-}
-
-.right-space{
-    position: absolute;
-    top: 0;
-    background-color: rgba(0, 0, 0, 0.2);
-
-
-}
-
 
 /* CHECKMARKS */
 .button-container{
@@ -170,61 +170,46 @@ h1 {
 
     -webkit-tap-highlight-color:  rgba(255, 255, 255, 0); 
 
+    input{
+        display: none;
+    }
 
-}
+    input:checked ~ .checkmark:after {
+        opacity: 1;
+        transition: opacity 300ms ease-in-out 0.2s;
 
-.button-container input{
-    display: none;
-}
+    }
 
-.button-container input:checked ~ .checkmark:after {
-    opacity: 1;
-    transition: opacity 300ms ease-in-out 0.2s;
+    .checkmark{
+        position: relative;
+        margin-right: 20px;
+        height: 25px;
+        width: 25px;
+        border-radius: 50%;
+        transition: background-color 300ms ease-in-out 0.1s;
 
-}
+        &:after {
+            content: "";
+            position: absolute;
+            opacity: 0;
 
-.button-container .checkmark:after {
-    left: 5px;
-    top: 1px;
-    width: 10px;
-    height: 15px;
-    border: solid white;
-    border-width: 0 4px 5px 0;
-    -webkit-transform: rotate(45deg);
-    -ms-transform: rotate(45deg);
-    transform: rotate(45deg);
-}
-
-
-.checkmark{
-    position: relative;
-    margin-right: 20px;
-    height: 25px;
-    width: 25px;
-    border-radius: 50%;
-    transition: background-color 300ms ease-in-out 0.1s;
-}
-.checkmark:after {
-    content: "";
-    position: absolute;
-    opacity: 0;
+            left: 5px;
+            top: 1px;
+            width: 10px;
+            height: 15px;
+            border: solid white;
+            border-width: 0 4px 5px 0;
+            -webkit-transform: rotate(45deg);
+            -ms-transform: rotate(45deg);
+            transform: rotate(45deg);
+        }
+    }
 }
 
 
-#afterword {
-    text-align: center;
-    padding: 5px;
-    color: grey;
-    font-family: "Helvetica";
-    margin-bottom: 90px;
-
-}
-#afterword a{
-    color: teal;
-    font-weight: bold;
-}
 
 
+/* AREA AND PIE CHART */
 .zoom-button {
     position: absolute;
     top: -5%;
@@ -235,6 +220,7 @@ h1 {
     border-width: 0;
     margin-left: 10px;
 }
+
 .period-text{
     position: absolute;
     left: 70%;
