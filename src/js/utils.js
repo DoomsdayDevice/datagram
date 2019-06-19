@@ -1,9 +1,9 @@
 export const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-export const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-export const NUMOFROWS = 6; // how many numbers should be displayed on the left
+export const DAYS_OF_WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+export const NUM_OF_ROWS = 6; // how many numbers should be displayed on the left
 export const pixelRatio = window.devicePixelRatio || 1;
-export const DATESPACE = 23 * pixelRatio; // the space left to display the dates
-export const NUMOFFRAMES = 16;
+export const DATE_SPACE = 23 * pixelRatio; // the space left to display the dates
+export const NUM_OF_FRAMES = 16;
 export const help = {
     round: function (number){
         // PARENTS: Chart.drawLine() drawText()
@@ -37,10 +37,10 @@ export const SETTINGS = {
 export const myMath = {
     findPrettyRoundNum: function(max){
         max *= 1.1; // make it a bit higher so there's some space above
-        let currentNumber = NUMOFROWS;
+        let currentNumber = NUM_OF_ROWS;
         let index = 0;
         let prettyNum = currentNumber;
-        while (currentNumber < max / NUMOFROWS){
+        while (currentNumber < max / NUM_OF_ROWS){
             prettyNum = currentNumber;
             if (currentNumber.toString()[0] == ('5')) {
                 currentNumber *= 2;
@@ -134,3 +134,19 @@ export const myMath = {
         }
     }
 };
+
+export function detectMobile() {
+  if( navigator.userAgent.match(/Android/i)
+      || navigator.userAgent.match(/webOS/i)
+      || navigator.userAgent.match(/iPhone/i)
+      || navigator.userAgent.match(/iPad/i)
+      || navigator.userAgent.match(/iPod/i)
+      || navigator.userAgent.match(/BlackBerry/i)
+      || navigator.userAgent.match(/Windows Phone/i)
+    ){
+    return true;
+  }
+  else {
+    return false;
+  }
+}
