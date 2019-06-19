@@ -5,4 +5,4 @@ Features:
     * No libraries, only native JS.  
     * you can move the slider and data will show on the screen (duh)  
     * nice transition animations  
-    * spaghetti code (the contest was one week long, so had to do it fast)  
+    * crappy spaghetti code and bugs (the contest was one week long, so had to do it fast)  
