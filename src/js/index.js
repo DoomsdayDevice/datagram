@@ -12,60 +12,59 @@ import switchTheme from './switchTheme.js';
 
 // LEGACY CHARTS FROM STAGE 1
 const arrayOfLegacyCharts = [];
-// let titleCount = 1;
 (function initiateLegacyCharts(){
-  let importData = () => {
-    let xmlhttp = new XMLHttpRequest();
+  (function importData() {
+    let xhr = new XMLHttpRequest();
     let url = "old/chart_data.json";
-    xmlhttp.responseType = 'json';
-    xmlhttp.open('GET', url, true);
-    xmlhttp.onload  = function() {
-      createCharts(xmlhttp.response);
+    xhr.responseType = 'json';
+    xhr.open('GET', url, true);
+    xhr.onload  = function() {
+      createCharts(xhr.response);
     };
-    xmlhttp.send(null);
-  };
-  let createCharts = (data) => {
+    xhr.send(null);
+  })();
+
+  function createCharts(data) {
     let title = 1;
     for (let i = 0; i < data.length; i++){
       arrayOfLegacyCharts.push(new Chart(data[i], "Graph "+title));
       title++;
     }
   };
-
-  importData();
 })();
 
-// NEW CHARTS initiate each chart; also appends each to arrayOfNewCharts
+// NEW CHARTS: initiates each chart, appends each to arrayOfNewCharts
 const arrayOfNewCharts = [];
-const chartClasses = {
-  1: LineChart,
-  2: Line2YChart,
-  3: StackedBarChart,
-  4: SingleBarChart,
-  5: AreaChart
-};
+{
+  const chartClasses = {
+    1: LineChart,
+    2: Line2YChart,
+    3: StackedBarChart,
+    4: SingleBarChart,
+    5: AreaChart
+  };
 
-function initiateNewCharts(chartNumber){
-  let importMainData = () => { // 1
-    let xmlhttp = new XMLHttpRequest();
-    let url = `data/${chartNumber}/overview.json`;
-    xmlhttp.responseType = 'json';
-    xmlhttp.open('GET', url, true);
-    xmlhttp.onload  = function() {
-      createNewCharts(xmlhttp.response);
+  function initiateChart(chartNumber){
+    (function importData() { // 1
+      let xhr = new XMLHttpRequest();
+      let url = `data/${chartNumber}/overview.json`;
+      xhr.responseType = 'json';
+      xhr.open('GET', url, true);
+
+      xhr.onload = function() {
+        createChart(xhr.response);
+      };
+      xhr.send(null);
+    })();
+
+    function createChart(data) { // 2
+      arrayOfNewCharts.push(new chartClasses[chartNumber](data));
     };
-    xmlhttp.send(null);
-  };
-  let createNewCharts = (data) => { // 2
-    arrayOfNewCharts.push(new chartClasses[chartNumber](data));
-  };
-
-  importMainData();
+  }
+  for (let c = 1; c <= 5; c++) {
+    initiateChart(c);
+  }
 }
-for (let c = 1; c <= 5; c++) {
-  initiateNewCharts(c);
-}
-
 
 { // Window Resize
   let documentWidth;
@@ -97,15 +96,9 @@ for (let c = 1; c <= 5; c++) {
 
 
 { // Switch Them Button
-  let themeButton;
-
-  let buttonContainer = document.querySelector(".switch-button-container");
-  // document.body.appendChild(buttonContainer);
-  // buttonContainer.id = "switch-container";
-
-  themeButton = document.createElement("span");
+  const buttonContainer = document.querySelector(".switch-button-container");
+  const themeButton = document.createElement("span");
   buttonContainer.appendChild(themeButton);
-  // themeButton.type = "a";
   themeButton.className = "switch-button";
   themeButton.innerHTML = "Switch to Day Mode";
 

@@ -36,7 +36,7 @@ export default function switchTheme(arrayOfCharts, arrayOfNewCharts, themeButton
       // chart.displayTooltip(window.event); // redraw the tooltip
     }
   }
-  if (color == DAY.lead){
+  if (color === DAY.lead){
     themeButton.innerHTML = "Switch to Night Mode";
   } else {
     themeButton.innerHTML = "Switch to Day Mode";
