@@ -1,4 +1,4 @@
-import { detectMobile } from './utils.js';
+'use strict';
 import {
   SETTINGS,
   pixelRatio,
@@ -10,7 +10,9 @@ import {
   MONTHS,
   DAYS_OF_WEEK,
   DAY,
-  NIGHT
+  NIGHT,
+
+  detectMobile
 } from './utils.js';
 import DrawingParameters from './DrawingParameters.js';
 

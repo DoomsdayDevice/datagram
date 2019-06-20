@@ -1,11 +1,17 @@
+'use strict';
 import Chart from './Chart.js';
-import LineChart from './LineChart.js';
 
-import { line2YChart, stackedBarChart, singleBarChart, areaChart } from './charts.js';
-import { switchTheme, putThemeButton } from './theme.js';
+import LineChart from './LineChart.js';
+import Line2YChart from './Line2YChart.js';
+import StackedBarChart from './StackedBarChart.js';
+import SingleBarChart from './SingleBarChart.js';
+import AreaChart  from './AreaChart.js';
+
+import switchTheme from './switchTheme.js';
+
 
 // LEGACY CHARTS FROM STAGE 1
-const arrayOfCharts = [];
+const arrayOfLegacyCharts = [];
 // let titleCount = 1;
 (function initiateLegacyCharts(){
   let importData = () => {
@@ -21,7 +27,7 @@ const arrayOfCharts = [];
   let createCharts = (data) => {
     let title = 1;
     for (let i = 0; i < data.length; i++){
-      arrayOfCharts.push(new Chart(data[i], "Graph "+title));
+      arrayOfLegacyCharts.push(new Chart(data[i], "Graph "+title));
       title++;
     }
   };
@@ -33,10 +39,10 @@ const arrayOfCharts = [];
 const arrayOfNewCharts = [];
 const chartClasses = {
   1: LineChart,
-  2: line2YChart,
-  3: stackedBarChart,
-  4: singleBarChart,
-  5: areaChart
+  2: Line2YChart,
+  3: StackedBarChart,
+  4: SingleBarChart,
+  5: AreaChart
 };
 
 function initiateNewCharts(chartNumber){
@@ -57,8 +63,53 @@ function initiateNewCharts(chartNumber){
   importMainData();
 }
 for (let c = 1; c <= 5; c++) {
-    initiateNewCharts(c);
+  initiateNewCharts(c);
 }
 
-putThemeButton();
-switchTheme(arrayOfCharts, arrayOfNewCharts);
+
+{ // Window Resize
+  let documentWidth;
+  let documentHeight;
+  function onLoad(){
+    documentWidth = innerWidth;
+    documentHeight = window.screen.height;
+  }
+
+  let throttled;
+  function onResize(){
+    if (!throttled && (documentWidth != innerWidth || documentHeight != window.screen.height)) {
+      location.reload();
+      throttled = true;
+
+      setTimeout(function() {
+        throttled = false;
+      }, 250);
+
+      documentWidth = innerWidth;
+      documentHeight = window.screen.height;
+    }
+
+  }
+
+  window.addEventListener("load", onLoad);
+  window.addEventListener("resize", onResize);
+}
+
+
+{ // Switch Them Button
+  let themeButton;
+
+  let buttonContainer = document.querySelector(".switch-button-container");
+  // document.body.appendChild(buttonContainer);
+  // buttonContainer.id = "switch-container";
+
+  themeButton = document.createElement("span");
+  buttonContainer.appendChild(themeButton);
+  // themeButton.type = "a";
+  themeButton.className = "switch-button";
+  themeButton.innerHTML = "Switch to Day Mode";
+
+  const boundSwitchTheme = switchTheme.bind(this, arrayOfLegacyCharts, arrayOfNewCharts, themeButton);
+  themeButton.addEventListener("click", boundSwitchTheme);
+  boundSwitchTheme();
+}

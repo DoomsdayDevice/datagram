@@ -1,7 +1,7 @@
+'use strict';
 import { DAY, NIGHT } from './utils.js';
 
-let themeButton;
-export function switchTheme(arrayOfCharts, arrayOfNewCharts){
+export default function switchTheme(arrayOfCharts, arrayOfNewCharts, themeButton){
   let color;
   if (getComputedStyle(document.body).backgroundColor == DAY.lead){
     color = NIGHT.lead;
@@ -41,16 +41,4 @@ export function switchTheme(arrayOfCharts, arrayOfNewCharts){
   } else {
     themeButton.innerHTML = "Switch to Day Mode";
   }
-}
-export function putThemeButton(){
-  let buttonContainer = document.querySelector(".switch-button-container");
-  // document.body.appendChild(buttonContainer);
-  // buttonContainer.id = "switch-container";
-
-  themeButton = document.createElement("span");
-  buttonContainer.appendChild(themeButton);
-  // themeButton.type = "a";
-  themeButton.className = "switch-button";
-  themeButton.innerHTML = "Switch to Day Mode";
-  themeButton.addEventListener("click", switchTheme);
 }

@@ -1,3 +1,4 @@
+'use strict';
 //create an xhr, load overview
 function downloadDays(filename, whereToAppend){
   let xmlhttp = new XMLHttpRequest();

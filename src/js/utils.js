@@ -1,3 +1,4 @@
+'use strict';
 export const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 export const DAYS_OF_WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 export const NUM_OF_ROWS = 6; // how many numbers should be displayed on the left
