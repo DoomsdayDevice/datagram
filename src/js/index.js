@@ -31,7 +31,7 @@ const arrayOfLegacyCharts = [];
       title++;
     }
   };
-})();
+});//();
 
 // NEW CHARTS: initiates each chart, appends each to arrayOfNewCharts
 const arrayOfNewCharts = [];
