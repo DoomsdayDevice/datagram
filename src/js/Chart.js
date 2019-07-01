@@ -30,11 +30,7 @@ export default class Chart {
 
     this.drawGraphOnMovement();
     this.drawMinimap();
-    this.drawNumbers(
-      this.configureGraphParams().ceiling,
-      1,
-      NUM_OF_FRAMES
-    );
+    this.drawNumbers(this.configureGraphParams().ceiling, 1, NUM_OF_FRAMES);
   }
   destructureData(data) {
     // takes the passed data and converts into objects i can easily work with
@@ -371,7 +367,7 @@ export default class Chart {
     // offset: difference between the position of slider coords and closest column coords
     // gotta convert that to the graph offset in drawGraph
 
-    let cutout = {
+    const cutout = {
       sliderColumnStart: sliderColumnStart,
       sliderColumnEnd: sliderColumnEnd,
       sliderOffset: sliderOffset,
@@ -512,16 +508,15 @@ export default class Chart {
       ? moveRight()
       : moveMiddle();
 
-    // apply all that shit
-    let fps = 30;
-    let now = Date.now();
-    let elapsed = now - this.then;
-    let fpsInterval = 1000 / fps;
+    // apply all that stuff
+    const fps = 30;
+    const now = Date.now();
+    const elapsed = now - this.then;
+    const fpsInterval = 1000 / fps;
 
-    if (elapsed > fpsInterval) {
-      this.then = now - (elapsed % fpsInterval);
-      this.drawGraphOnMovement();
-    }
+    elapsed > fpsInterval
+      ? (this.then = now - (elapsed % fpsInterval))
+      : this.drawGraphOnMovement();
 
     // TODO recalculate the position of the
     this.configureSlider();
@@ -543,22 +538,17 @@ export default class Chart {
   }
 
   configureGraphParams() {
-
-    let cutout = this.calculateCutout();
-    let xStart = cutout.sliderColumnStart;
-    let xEnd = cutout.sliderColumnEnd;
+    const cutout = this.calculateCutout();
+    const xStart = cutout.sliderColumnStart;
+    const xEnd = cutout.sliderColumnEnd;
     // let initialGraphCeiling = this.findPrettyMax(0, this.x.length); //TODO change to cutout size
-    let ceiling = this.findPrettyMax(xStart, xEnd);
+    const ceiling = this.findPrettyMax(xStart, xEnd);
 
     // configuring the offset
     let xOffset = (cutout.sliderOffset / this.minimap.width) * this.graph.width;
-    let numOfCutColumns = cutout.sliderColumnEnd - cutout.sliderColumnStart;
+    const numOfCutColumns = cutout.sliderColumnEnd - cutout.sliderColumnStart;
     xOffset = (xOffset / numOfCutColumns) * this.x.length;
 
-    if (!this.oldCeiling) {
-      // if we set it for the first time
-      this.oldCeiling = ceiling;
-    }
     return {
       ctx: this.gCtx,
       xArray: this.x,
@@ -572,13 +562,13 @@ export default class Chart {
       xEnd,
       ceiling,
 
-      oldCeiling: this.oldCeiling,
+      oldCeiling: this.oldCeiling || ceiling, // if setting for the first time
       xOffset,
       columnsOnCanvas: cutout.numOfVisibleGraphColumns
     };
   }
   drawGraph(onButtonPress = false) {
-    let parameters = this.configureGraphParams();
+    const parameters = this.configureGraphParams();
     if (onButtonPress) {
       parameters.onButtonPress = true;
     }
@@ -595,7 +585,6 @@ export default class Chart {
       parameters.ctx.clearRect(0, 0, this.graph.width, this.graph.height);
       this.drawLinesForAllActiveArrays(parameters);
     }
-    // if the ceiling has shifted - launch anim
   }
   configureMinimapParams() {
     let ceiling = this.findPrettyMax(0, this.x.length);
@@ -636,6 +625,7 @@ export default class Chart {
     }
   }
   findLowestLocalAmongActives() {
+    // TODO
     let currentMin;
     currentMin = Math.min();
     // go through all the actives and find min
@@ -701,13 +691,13 @@ export default class Chart {
     xOffset,
     columnsOnCanvas
   }) {
-    let areaHeight = yEndPoint - yStartPoint;
-    let areaWidth = xEndPoint - xStartPoint;
+    const areaHeight = yEndPoint - yStartPoint;
+    const areaWidth = xEndPoint - xStartPoint;
 
     // find lowest local val
     //
 
-    let columnWidth = areaWidth / columnsOnCanvas; //used to calculate the number of columns on the screen
+    const columnWidth = areaWidth / columnsOnCanvas; //used to calculate the number of columns on the screen
     let numsPerPixel = areaHeight / ceiling;
 
     let currentX = xStartPoint - xOffset;
@@ -717,7 +707,8 @@ export default class Chart {
     // ctx.moveTo(currentX, currentY);
     for (let i = xStart; i < xEnd + 1; i++) {
       currentX = myMath.round((i - xStart) * columnWidth) - xOffset;
-      currentY = yEndPoint - myMath.round(yArray[i] * numsPerPixel) - yStartPoint;
+      currentY =
+        yEndPoint - myMath.round(yArray[i] * numsPerPixel) - yStartPoint;
       // currentY = yEndPoint - myMath.round((yArray[i]-lowestLocal) * localNumsPerPixel) - yStartPoint;
 
       ctx.lineTo(currentX, currentY);
@@ -1074,9 +1065,6 @@ export default class Chart {
   }
 
   isAnyArrayActive() {
-    for (let i in this.lines) {
-      if (this.lines[i].isActive) return true;
-    }
-    return false;
+    return this.lines.some(line => line.isActive);
   }
 }
