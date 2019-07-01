@@ -6,7 +6,6 @@ import {
   PIXEL_RATIO,
   DATE_SPACE,
   NUM_OF_FRAMES,
-  help,
   // NIGHT,
   // DAY,
   SETTINGS,
@@ -55,7 +54,7 @@ export default class AreaChart extends Chart{
       this.tooltip.style.display = "none";
       this.zoomButton.style.display = "block";
       this.periodText.style.display = "block";
-      this.drawDates(this.configureParametersForGraph());
+      this.drawDates(this.configureGraphParams());
       this.popup.removeEventListener("click", this.boundChangeMode);
       this.popup.addEventListener("click", this.boundSelectPieceOfPie);
     } else {
@@ -63,7 +62,7 @@ export default class AreaChart extends Chart{
       this.gCtx.clearRect(0, 0, this.graph.width, this.graph.height);
       // TODO draw numbers
       this.drawGraph();
-      this.drawDates(this.configureParametersForGraph());
+      this.drawDates(this.configureGraphParams());
       this.drawNumbers();
       this.zoomButton.style.display = "none";
       this.periodText.style.display = "none";
@@ -93,13 +92,13 @@ export default class AreaChart extends Chart{
 
     // scroll through them
   }
-  configureParametersForGraph(){
-    let parameters = super.configureParametersForGraph();
+  configureGraphParams(){
+    let parameters = super.configureGraphParams();
     parameters.displayNumbers = false;
     return parameters;
   }
   drawGraph(){
-    let parameters = this.configureParametersForGraph();
+    let parameters = this.configureGraphParams();
     this.gCtx.clearRect(0, 0, this.graph.width, this.graph.height);
     let configuredArea = this.configureArea(parameters);
     let percentLines = configuredArea[0];
@@ -109,7 +108,7 @@ export default class AreaChart extends Chart{
       this.oldGraphPercentLines = percentLines; // used to track changes for animation
     }
 
-    if (!myMath.arraysOfArraysAreEqual(percentLines, this.oldGraphPercentLines)){
+    if (!myMath.nestedArraysAreEqual(percentLines, this.oldGraphPercentLines)){
       this.animation(parameters, this.oldGraphPercentLines, percentLines, arrayOfOffsets);
       this.oldGraphPercentLines = percentLines;
     } else {
@@ -118,7 +117,7 @@ export default class AreaChart extends Chart{
 
   }
   drawMinimap(){
-    let parameters = this.configureParametersForMinimap();
+    let parameters = this.configureMinimapParams();
 
     this.mCtx.clearRect(0, 0, this.minimap.width, this.minimap.height);
     // this.drawWithAnArea(parameters);
@@ -130,7 +129,7 @@ export default class AreaChart extends Chart{
       this.oldMinimapPercentLines = percentLines; // used to track changes for animation
     }
 
-    if (!myMath.arraysOfArraysAreEqual(percentLines, this.oldMinimapPercentLines)){
+    if (!myMath.nestedArraysAreEqual(percentLines, this.oldMinimapPercentLines)){
       this.animation(parameters, this.oldMinimapPercentLines, percentLines, arrayOfOffsets);
       this.oldMinimapPercentLines = percentLines;
     } else {
@@ -194,7 +193,7 @@ export default class AreaChart extends Chart{
     }
   }
   drawGraphOnMovement(){
-    this.drawDates(this.configureParametersForGraph());
+    this.drawDates(this.configureGraphParams());
     if (this.mode == "pie"){
       this.drawGraphWithAPie();
     } else {
@@ -271,10 +270,10 @@ export default class AreaChart extends Chart{
     ctx.lineTo(0, areaHeight);
     for (let x = xStart; x < xEnd + 1; x++) {
       // draw a line and add the corresponding offset, then add that line's height to it
-      currentX = help.round((x - xStart) * columnWidth) - xOffset;
-      // currentY = yEndPoint - help.round( yArray[i] * numsPerPixel ) - yStartPoint;
+      currentX = myMath.round((x - xStart) * columnWidth) - xOffset;
+      // currentY = yEndPoint - myMath.round( yArray[i] * numsPerPixel ) - yStartPoint;
 
-      currentY = help.round(areaHeight - (arrayOfOffsets[x] + yArray[x] * numsPerPixel) * areaHeight);
+      currentY = myMath.round(areaHeight - (arrayOfOffsets[x] + yArray[x] * numsPerPixel) * areaHeight);
       ctx.lineTo(currentX, currentY);
 
       // currentX += columnWidth;
@@ -354,7 +353,7 @@ export default class AreaChart extends Chart{
     // this.drawCircles(convertedYValue, conversionQuotient, currentXPos, currentArrayColumn);
   }
   popPiePopup(){
-    let parameters = this.configureParametersForGraph();
+    let parameters = this.configureGraphParams();
 
     let left = this.piePopup.getBoundingClientRect().left;
     let top = this.piePopup.getBoundingClientRect().top;

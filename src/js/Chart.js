@@ -2,17 +2,15 @@ import {
   SETTINGS,
   PIXEL_RATIO,
   DATE_SPACE,
-  myMath,
   NUM_OF_ROWS,
   NUM_OF_FRAMES,
-  help,
+  myMath,
   MONTHS,
   DAYS_OF_WEEK,
   DAY,
   NIGHT,
   detectMobile
 } from './utils.js';
-import DrawingParameters from './DrawingParameters.js';
 
 export default class Chart {
   constructor(data, title) {
@@ -33,7 +31,7 @@ export default class Chart {
     this.drawGraphOnMovement();
     this.drawMinimap();
     this.drawNumbers(
-      this.configureParametersForGraph().ceiling,
+      this.configureGraphParams().ceiling,
       1,
       NUM_OF_FRAMES
     );
@@ -540,12 +538,11 @@ export default class Chart {
     this.drawMinimap(true);
   }
   drawGraphOnMovement() {
-    this.drawDates(this.configureParametersForGraph());
+    this.drawDates(this.configureGraphParams());
     this.drawGraph();
   }
 
-  configureParametersForGraph() {
-    let parameters = new DrawingParameters();
+  configureGraphParams() {
 
     let cutout = this.calculateCutout();
     let xStart = cutout.sliderColumnStart;
@@ -558,29 +555,30 @@ export default class Chart {
     let numOfCutColumns = cutout.sliderColumnEnd - cutout.sliderColumnStart;
     xOffset = (xOffset / numOfCutColumns) * this.x.length;
 
-    parameters.ctx = this.gCtx;
-    parameters.xArray = this.x;
-    parameters.yArray = null;
-    parameters.color = null;
-    parameters.yStartPoint = 0;
-    parameters.yEndPoint = this.graph.height - DATE_SPACE;
-    parameters.xStartPoint = 0;
-    parameters.xEndPoint = this.graph.width;
-    parameters.xStart = xStart;
-    parameters.xEnd = xEnd;
-    parameters.ceiling = ceiling;
     if (!this.oldCeiling) {
       // if we set it for the first time
       this.oldCeiling = ceiling;
     }
-    parameters.oldCeiling = this.oldCeiling;
-    parameters.xOffset = xOffset;
-    parameters.columnsOnCanvas = cutout.numOfVisibleGraphColumns;
+    return {
+      ctx: this.gCtx,
+      xArray: this.x,
+      yArray: null,
+      color: null,
+      yStartPoint: 0,
+      yEndPoint: this.graph.height - DATE_SPACE,
+      xStartPoint: 0,
+      xEndPoint: this.graph.width,
+      xStart,
+      xEnd,
+      ceiling,
 
-    return parameters;
+      oldCeiling: this.oldCeiling,
+      xOffset,
+      columnsOnCanvas: cutout.numOfVisibleGraphColumns
+    };
   }
   drawGraph(onButtonPress = false) {
-    let parameters = this.configureParametersForGraph();
+    let parameters = this.configureGraphParams();
     if (onButtonPress) {
       parameters.onButtonPress = true;
     }
@@ -599,28 +597,30 @@ export default class Chart {
     }
     // if the ceiling has shifted - launch anim
   }
-  configureParametersForMinimap() {
-    let parameters = new DrawingParameters();
+  configureMinimapParams() {
     let ceiling = this.findPrettyMax(0, this.x.length);
-    parameters.ctx = this.mCtx;
-    parameters.xArray = this.x;
-    parameters.yArray = null;
-    parameters.color = null;
-    parameters.yStartPoint = 0;
-    parameters.yEndPoint = this.minimap.height;
-    parameters.xStartPoint = 0;
-    parameters.xEndPoint = this.minimap.width;
-    parameters.xStart = 0;
-    parameters.xEnd = this.x.length - 1;
-    parameters.ceiling = ceiling;
-    parameters.oldCeiling = this.oldMinimapCeiling;
-    parameters.xOffset = 0; // mini doesn't need an offset
-    parameters.columnsOnCanvas = this.x.length;
-    return parameters;
+
+    return {
+      ctx: this.mCtx,
+      xArray: this.x,
+      yArray: null,
+      color: null,
+      yStartPoint: 0,
+      yEndPoint: this.minimap.height,
+      xStartPoint: 0,
+      xEndPoint: this.minimap.width,
+      xStart: 0,
+      xEnd: this.x.length - 1,
+      ceiling,
+
+      oldCeiling: this.oldMinimapCeiling,
+      xOffset: 0,
+      columnsOnCanvas: this.x.length
+    };
   }
   drawMinimap(onButtonPress = false) {
     // PARENTS: createButtons, launchChart,
-    let parameters = this.configureParametersForMinimap();
+    let parameters = this.configureMinimapParams();
     if (onButtonPress) {
       parameters.onButtonPress = true;
     }
@@ -711,14 +711,14 @@ export default class Chart {
     let numsPerPixel = areaHeight / ceiling;
 
     let currentX = xStartPoint - xOffset;
-    let currentY = help.round(yArray[xStart] * numsPerPixel) - yStartPoint;
+    let currentY = myMath.round(yArray[xStart] * numsPerPixel) - yStartPoint;
 
     ctx.beginPath();
     // ctx.moveTo(currentX, currentY);
     for (let i = xStart; i < xEnd + 1; i++) {
-      currentX = help.round((i - xStart) * columnWidth) - xOffset;
-      currentY = yEndPoint - help.round(yArray[i] * numsPerPixel) - yStartPoint;
-      // currentY = yEndPoint - help.round((yArray[i]-lowestLocal) * localNumsPerPixel) - yStartPoint;
+      currentX = myMath.round((i - xStart) * columnWidth) - xOffset;
+      currentY = yEndPoint - myMath.round(yArray[i] * numsPerPixel) - yStartPoint;
+      // currentY = yEndPoint - myMath.round((yArray[i]-lowestLocal) * localNumsPerPixel) - yStartPoint;
 
       ctx.lineTo(currentX, currentY);
     }
@@ -766,17 +766,17 @@ export default class Chart {
         // detects whether it's the minimap or the graph
         if (parameters.onButtonPress) {
           // for ALPHA ANIMATION
-          parameters = this.configureParametersForGraph();
+          parameters = this.configureGraphParams();
           parameters.onButtonPress = true;
         } else {
-          parameters = this.configureParametersForGraph();
+          parameters = this.configureGraphParams();
         }
       } else {
         if (parameters.onButtonPress) {
-          parameters = this.configureParametersForMinimap();
+          parameters = this.configureMinimapParams();
           parameters.onButtonPress = true;
         } else {
-          parameters = this.configureParametersForMinimap();
+          parameters = this.configureMinimapParams();
         }
       }
 
@@ -874,7 +874,7 @@ export default class Chart {
     for (let i = xStart; i < xEnd + 1; i++) {
       if (dateSkipCounter === 0) {
         // TODO finish rounding floats
-        currentX = help.round((i - xStart) * columnWidth - xOffset);
+        currentX = myMath.round((i - xStart) * columnWidth - xOffset);
         let date = new Date(this.x[i]);
         date = MONTHS[date.getMonth()] + ' ' + date.getDate();
         this.iCtx.fillText(date, currentX, y);
@@ -1039,7 +1039,7 @@ export default class Chart {
       clientX = event.clientX * PIXEL_RATIO;
     }
     // gets the current mouse position and prints the appropriate array values
-    let parameters = this.configureParametersForGraph();
+    let parameters = this.configureGraphParams();
     let cutout = this.calculateCutout();
 
     let cutoutSize = cutout.sliderColumnEnd - cutout.sliderColumnStart;

@@ -6,7 +6,7 @@ import {
   // PIXEL_RATIO,
   DATE_SPACE,
   // NUM_OF_FRAMES,
-  help,
+  myMath,
   // NIGHT,
   // DAY,
   // SETTINGS,
@@ -57,9 +57,9 @@ export default class BarChart extends Chart{
     for (let x = xStart; x < xEnd + 1; x++) {
 
       currentOffset = arrayOfOffsets[x] * numsPerPixel; //TEMP
-      currentY = yEndPoint - help.round( yArray[x] * numsPerPixel )
+      currentY = yEndPoint - myMath.round( yArray[x] * numsPerPixel )
         - yStartPoint - currentOffset;
-      currentX = help.round((x - xStart) * columnWidth) - xOffset;
+      currentX = myMath.round((x - xStart) * columnWidth) - xOffset;
 
       fillDistance = areaHeight - currentY - currentOffset; // on the Y axis
       fillWidth = areaWidth / columnsOnCanvas + 1; // on the X axis

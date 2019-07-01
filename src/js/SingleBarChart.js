@@ -42,7 +42,7 @@ export default class SingleBarChart extends BarChart{
   }
 
   drawGraph(){
-    let parameters = this.configureParametersForGraph();
+    let parameters = this.configureGraphParams();
 
     if (this.oldCeiling != parameters.ceiling) {
       if (!this.animationActive){
@@ -61,7 +61,7 @@ export default class SingleBarChart extends BarChart{
   }
   drawGraphOld(){
     // this.drawBars(this.y, 300, this.x.length, this.color);
-    let parameters = this.configureParametersForGraph();
+    let parameters = this.configureGraphParams();
 
     this.gCtx.clearRect(0, 0, this.graph.width, this.graph.height);
     this.drawBars(parameters);
@@ -71,7 +71,7 @@ export default class SingleBarChart extends BarChart{
     this.drawBars(parameters);
   }
   drawMinimap(){
-    let parameters = this.configureParametersForMinimap();
+    let parameters = this.configureMinimapParams();
 
     this.mCtx.clearRect(0, 0, this.minimap.width, this.minimap.height);
 
@@ -97,7 +97,7 @@ export default class SingleBarChart extends BarChart{
     this.displayTooltip(currentArrayColumn, currentXPos / PIXEL_RATIO);
 
     // making a column transparent
-    let parameters = this.configureParametersForGraph();
+    let parameters = this.configureGraphParams();
     parameters.selectedColumn = currentArrayColumn;
     this.gCtx.clearRect(0, 0, this.graph.width, this.graph.height);
     this.drawBars(parameters);

@@ -61,7 +61,7 @@ export default class StackedBarChart extends BarChart{
   }
   drawGraph(){
     // TODO clearing the canvas should prolly be done in the wrapper using the param ctx
-    let parameters = this.configureParametersForGraph();
+    let parameters = this.configureGraphParams();
 
     if (this.oldCeiling != parameters.ceiling) { // TODO consider code optimization with drawMinimap since it uses the same code
       if (!this.animationActive){
@@ -79,7 +79,7 @@ export default class StackedBarChart extends BarChart{
     // this.drawStackedBars(parameters);
   }
   drawMinimap(){
-    let parameters = this.configureParametersForMinimap();
+    let parameters = this.configureMinimapParams();
 
     this.mCtx.clearRect(0, 0, this.minimap.width, this.minimap.height);
 
@@ -117,7 +117,7 @@ export default class StackedBarChart extends BarChart{
     this.displayTooltip(currentArrayColumn, currentXPos / PIXEL_RATIO);
 
     // making a column transparent
-    let parameters = this.configureParametersForGraph();
+    let parameters = this.configureGraphParams();
     parameters.selectedColumn = currentArrayColumn;
     this.gCtx.clearRect(0, 0, this.graph.width, this.graph.height);
     this.drawStackedBars(parameters);

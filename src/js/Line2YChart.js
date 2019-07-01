@@ -38,7 +38,7 @@ export default class Line2YChart extends Chart{
 
   }
   configureParametersForGraphFirst(){
-    let parameters = this.configureParametersForGraph();
+    let parameters = this.configureGraphParams();
     parameters.yArray = this.lines[0].array;
     parameters.color = this.lines[0].color;
     parameters.ceiling = this.findPrettyMax(parameters.xStart, parameters.xEnd, parameters.yArray);
@@ -49,7 +49,7 @@ export default class Line2YChart extends Chart{
     return parameters;
   }
   configureParametersForGraphSecond(){
-    let parameters = this.configureParametersForGraph();
+    let parameters = this.configureGraphParams();
     parameters.yArray = this.lines[1].array;
     parameters.color = this.lines[1].color;
     parameters.ceiling = this.findPrettyMax(parameters.xStart, parameters.xEnd, parameters.yArray);
@@ -61,7 +61,7 @@ export default class Line2YChart extends Chart{
   }
 
   configureParametersForMinimapFirst(){
-    let parameters = this.configureParametersForMinimap();
+    let parameters = this.configureMinimapParams();
     parameters.yArray = this.lines[0].array;
     parameters.color = this.lines[0].color;
     parameters.ceiling = this.findPrettyMax(0, this.x.length, parameters.yArray);
@@ -72,7 +72,7 @@ export default class Line2YChart extends Chart{
     return parameters;
   }
   configureParametersForMinimapSecond(){
-    let parameters = this.configureParametersForMinimap();
+    let parameters = this.configureMinimapParams();
     parameters.yArray = this.lines[1].array;
     parameters.color = this.lines[1].color;
     parameters.ceiling = this.findPrettyMax(0, this.x.length, parameters.yArray);
