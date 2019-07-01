@@ -1,4 +1,3 @@
-'use strict';
 import Chart from './Chart.js';
 
 import LineChart from './LineChart.js';

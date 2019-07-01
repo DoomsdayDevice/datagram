@@ -1,10 +1,9 @@
-'use strict';
 import Chart from './Chart.js';
 import {
   MONTHS,
   // DAYS_OF_WEEK,
   NUM_OF_ROWS,
-  pixelRatio,
+  PIXEL_RATIO,
   DATE_SPACE,
   NUM_OF_FRAMES,
   help,
@@ -302,7 +301,7 @@ export default class AreaChart extends Chart{
     let xPos = this.graph.width / 2;
     let yPos = this.graph.height / 2;
 
-    let radius = 120 * pixelRatio;
+    let radius = 120 * PIXEL_RATIO;
     let startAngle = pieOffset * Math.PI * 2;
     let endAngle = startAngle + Math.PI * 2 * pieceOfPie;
 
@@ -324,7 +323,7 @@ export default class AreaChart extends Chart{
     ctx.fillStyle = color;
     ctx.fill();
     // draw %% in the middle; font depends on the size
-    let fontSize = 16 * pixelRatio * Math.log10(pieceOfPie* 80);
+    let fontSize = 16 * PIXEL_RATIO * Math.log10(pieceOfPie* 80);
     pieceOfPie = Math.round(pieceOfPie * 100);
     let text = `${pieceOfPie}%`;
 
@@ -349,7 +348,7 @@ export default class AreaChart extends Chart{
   drawGraphPopup(currentArrayColumn, currentXPos, convertedYValue, conversionQuotient){
     if (this.mode == "area"){
       this.pCtx.clearRect(0, 0, this.popup.width, this.popup.height);
-      this.displayTooltip(currentArrayColumn, currentXPos / pixelRatio);
+      this.displayTooltip(currentArrayColumn, currentXPos / PIXEL_RATIO);
       this.drawVerticalLine(currentXPos);
     }
     // this.drawCircles(convertedYValue, conversionQuotient, currentXPos, currentArrayColumn);
@@ -448,7 +447,7 @@ export default class AreaChart extends Chart{
 
   }
   drawNumbers(){
-    let y = this.graph.height - DATE_SPACE * pixelRatio / 1.5;
+    let y = this.graph.height - DATE_SPACE * PIXEL_RATIO / 1.5;
     this.iCtx.clearRect(0, 0, this.graph.width, y);
     let rowHeight = (this.graph.height - DATE_SPACE) / (NUM_OF_ROWS - 1);
     let curNum = 20;
@@ -465,7 +464,7 @@ export default class AreaChart extends Chart{
       curNum += rowStep;
       y -= rowHeight;
     }
-    this.iCtx.lineWidth = 1 * pixelRatio;
+    this.iCtx.lineWidth = 1 * PIXEL_RATIO;
 
     this.drawHorizontalLines(rowHeight);
   }

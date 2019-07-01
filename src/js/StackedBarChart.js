@@ -1,10 +1,9 @@
-' use strict';
 import BarChart from './BarChart.js';
 import {
   // MONTHS,
   // DAYS_OF_WEEK,
   // NUM_OF_ROWS,
-  pixelRatio,
+  PIXEL_RATIO,
   DATE_SPACE,
   // NUM_OF_FRAMES,
   // help,
@@ -115,7 +114,7 @@ export default class StackedBarChart extends BarChart{
   }
   drawGraphPopup(currentArrayColumn, currentXPos, convertedYValue, conversionQuotient){
     // PARENT: drawPopup in Chart
-    this.displayTooltip(currentArrayColumn, currentXPos / pixelRatio);
+    this.displayTooltip(currentArrayColumn, currentXPos / PIXEL_RATIO);
 
     // making a column transparent
     let parameters = this.configureParametersForGraph();

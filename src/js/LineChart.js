@@ -1,4 +1,3 @@
-'use strict';
 import Chart from './Chart.js';
 
 export default class lineChart extends Chart{

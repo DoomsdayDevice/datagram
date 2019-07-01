@@ -1,8 +1,7 @@
-'use strict';
 import Chart from './Chart.js';
 import {
   // SETTINGS,
-  pixelRatio,
+  PIXEL_RATIO,
   DATE_SPACE,
   myMath,
   // NUM_OF_ROWS,
@@ -282,11 +281,11 @@ export default class Line2YChart extends Chart{
 
         this.pCtx.beginPath();
         this.pCtx.arc(currentXPos, convertedYValue,
-                      6 * pixelRatio, 0, Math.PI * 2);
+                      6 * PIXEL_RATIO, 0, Math.PI * 2);
         this.pCtx.fillStyle = getComputedStyle(document.body).backgroundColor;
         this.pCtx.strokeStyle = this.lines[i]["color"];
         this.pCtx.fill();
-        this.pCtx.lineWidth = 2 * pixelRatio;
+        this.pCtx.lineWidth = 2 * PIXEL_RATIO;
         this.pCtx.stroke();
         this.pCtx.fillStyle = "black";
 

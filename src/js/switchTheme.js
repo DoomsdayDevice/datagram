@@ -1,4 +1,3 @@
-'use strict';
 import { DAY, NIGHT } from './utils.js';
 
 export default function switchTheme(arrayOfCharts, themeButton){

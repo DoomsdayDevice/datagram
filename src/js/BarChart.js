@@ -1,10 +1,9 @@
-'use strict';
 import Chart from './Chart.js';
 import {
   // MONTHS,
   // DAYS_OF_WEEK,
   // NUM_OF_ROWS,
-  // pixelRatio,
+  // PIXEL_RATIO,
   DATE_SPACE,
   // NUM_OF_FRAMES,
   help,

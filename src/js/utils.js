@@ -1,9 +1,8 @@
-'use strict';
 export const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 export const DAYS_OF_WEEK = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 export const NUM_OF_ROWS = 6; // how many numbers should be displayed on the left
-export const pixelRatio = window.devicePixelRatio || 1;
-export const DATE_SPACE = 23 * pixelRatio; // the space left to display the dates
+export const PIXEL_RATIO = window.devicePixelRatio || 1;
+export const DATE_SPACE = 23 * PIXEL_RATIO; // the space left to display the dates
 export const NUM_OF_FRAMES = 16;
 export const help = {
     round: function (number){
@@ -31,7 +30,7 @@ export const SETTINGS = {
     canvasHeight: 300,
 
     minSliderWidth: 50,
-    fontSize: 16 * pixelRatio
+    fontSize: 16 * PIXEL_RATIO
 
 };
 

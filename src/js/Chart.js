@@ -1,7 +1,6 @@
-'use strict';
 import {
   SETTINGS,
-  pixelRatio,
+  PIXEL_RATIO,
   DATE_SPACE,
   myMath,
   NUM_OF_ROWS,
@@ -124,8 +123,8 @@ export default class Chart {
 
     this.graph.style.width = this.graph.width + 'px';
     this.graph.style.height = this.graph.height + 'px';
-    this.graph.width *= pixelRatio;
-    this.graph.height *= pixelRatio;
+    this.graph.width *= PIXEL_RATIO;
+    this.graph.height *= PIXEL_RATIO;
 
     // canvas for LINES NUMBERS DATES
     this.info = document.createElement('canvas');
@@ -138,8 +137,8 @@ export default class Chart {
     this.info.height = SETTINGS.canvasHeight;
     this.info.style.width = this.info.width + 'px';
     this.info.style.height = this.info.height + 'px';
-    this.info.width *= pixelRatio;
-    this.info.height *= pixelRatio;
+    this.info.width *= PIXEL_RATIO;
+    this.info.height *= PIXEL_RATIO;
 
     // canvas for the POPUP
     this.popup = document.createElement('canvas');
@@ -151,8 +150,8 @@ export default class Chart {
     this.popup.height = SETTINGS.canvasHeight;
     this.popup.style.width = this.popup.width + 'px';
     this.popup.style.height = this.popup.height + 'px';
-    this.popup.width *= pixelRatio;
-    this.popup.height *= pixelRatio;
+    this.popup.width *= PIXEL_RATIO;
+    this.popup.height *= PIXEL_RATIO;
 
     this.popup.addEventListener('mousemove', this.drawPopup.bind(this));
     this.popup.addEventListener('touchstart', () => {
@@ -179,8 +178,8 @@ export default class Chart {
 
     this.minimap.style.width = this.minimap.width + 'px';
     this.minimap.style.height = this.minimap.height + 'px';
-    this.minimap.width *= pixelRatio;
-    this.minimap.height *= pixelRatio;
+    this.minimap.width *= PIXEL_RATIO;
+    this.minimap.height *= PIXEL_RATIO;
   }
   createSlider() {
     this.lSpace = document.createElement('div');
@@ -725,9 +724,9 @@ export default class Chart {
     }
     ctx.lineJoin = 'round';
     if (ctx === this.gCtx) {
-      ctx.lineWidth = 2 * pixelRatio;
+      ctx.lineWidth = 2 * PIXEL_RATIO;
     } else {
-      ctx.lineWidth = 1 * pixelRatio;
+      ctx.lineWidth = 1 * PIXEL_RATIO;
     }
     ctx.strokeStyle = color;
 
@@ -826,7 +825,7 @@ export default class Chart {
     let drawLines = () => {
       let x = 0;
       let xEnd = this.graph.width;
-      let y = DATE_SPACE - 21 * pixelRatio;
+      let y = DATE_SPACE - 21 * PIXEL_RATIO;
       for (let i = 0; i < NUM_OF_ROWS; i++) {
         this.iCtx.moveTo(x, y);
         this.iCtx.lineTo(xEnd, y);
@@ -865,9 +864,9 @@ export default class Chart {
 
     let dateSkipCounter = 0;
     let skipFactor;
-    skipFactor = Math.floor((80 / columnWidth) * pixelRatio);
+    skipFactor = Math.floor((80 / columnWidth) * PIXEL_RATIO);
 
-    let y = this.graph.height - 5 * pixelRatio;
+    let y = this.graph.height - 5 * PIXEL_RATIO;
     let currentX = 0;
 
     this.iCtx.font = `${SETTINGS.fontSize}px Helvetica`; //font for the numbers
@@ -914,7 +913,7 @@ export default class Chart {
     let xPosition;
     side === 'L'
       ? (xPosition = 20)
-      : (xPosition = this.graph.width - 50 * pixelRatio);
+      : (xPosition = this.graph.width - 50 * PIXEL_RATIO);
 
     this.iCtx.globalAlpha = opacity;
     this.iCtx.font = `${SETTINGS.fontSize}px Helvetica`; //font for the numbers
@@ -1009,14 +1008,14 @@ export default class Chart {
         this.pCtx.arc(
           currentXPos,
           convertedYValue,
-          6 * pixelRatio,
+          6 * PIXEL_RATIO,
           0,
           Math.PI * 2
         );
         this.pCtx.fillStyle = getComputedStyle(document.body).backgroundColor;
         this.pCtx.strokeStyle = this.lines[i]['color'];
         this.pCtx.fill();
-        this.pCtx.lineWidth = 2 * pixelRatio;
+        this.pCtx.lineWidth = 2 * PIXEL_RATIO;
         this.pCtx.stroke();
         this.pCtx.fillStyle = 'black';
       }
@@ -1035,9 +1034,9 @@ export default class Chart {
     let clientX;
     if (event.type === 'touchmove') {
       // check if on mobile
-      clientX = event.touches[0].clientX * pixelRatio;
+      clientX = event.touches[0].clientX * PIXEL_RATIO;
     } else {
-      clientX = event.clientX * pixelRatio;
+      clientX = event.clientX * PIXEL_RATIO;
     }
     // gets the current mouse position and prints the appropriate array values
     let parameters = this.configureParametersForGraph();
@@ -1069,7 +1068,7 @@ export default class Chart {
 
   drawGraphPopup(currentArrayColumn, currentXPos, conversionQuotient) {
     this.pCtx.clearRect(0, 0, this.popup.width, this.popup.height);
-    this.displayTooltip(currentArrayColumn, currentXPos / pixelRatio);
+    this.displayTooltip(currentArrayColumn, currentXPos / PIXEL_RATIO);
     this.drawVerticalLine(currentXPos);
     this.drawCircles(conversionQuotient, currentXPos, currentArrayColumn);
   }
