@@ -6,3 +6,5 @@ Features:
     * you can move the slider and data will show on the screen (duh)  
     * nice transition animations  
     * crappy spaghetti code and bugs (the contest was one week long, so had to do it fast)  
+
+Current state: refactoring and turning it into a useful library.
